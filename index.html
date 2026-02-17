@@ -15,7 +15,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Babel Standalone for client-side transpilation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
@@ -29,11 +28,7 @@
             height: 100vh;
             overflow: hidden;
         }
-        #root { 
-            height: 100%; 
-            display: flex; 
-            flex-direction: column; 
-        }
+        #root { height: 100%; display: flex; flex-direction: column; }
         .loading-screen {
             position: fixed;
             inset: 0;
@@ -45,10 +40,7 @@
             z-index: 1000;
             transition: opacity 0.4s ease-out;
         }
-        .loading-screen.fade-out {
-            opacity: 0;
-            pointer-events: none;
-        }
+        .loading-screen.fade-out { opacity: 0; pointer-events: none; }
         .spinner {
             width: 32px;
             height: 32px;
@@ -58,10 +50,7 @@
             animation: spin 0.8s linear infinite;
             margin-bottom: 1.5rem;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .error-container {
             max-width: 80%;
             text-align: center;
@@ -69,6 +58,8 @@
             font-size: 12px;
             margin-top: 1rem;
             display: none;
+            white-space: pre-wrap;
+            font-family: monospace;
         }
     </style>
 
@@ -97,9 +88,6 @@
     <div id="root"></div>
     
     <script>
-        /**
-         * Enhanced Babel/Fetch Loader for GitHub Pages
-         */
         (async function boot() {
             const loadingText = document.getElementById('loading-text');
             const errorDisplay = document.getElementById('error-display');
@@ -109,44 +97,44 @@
                 if (loadingText) loadingText.innerText = "Load Failed";
                 if (errorDisplay) {
                     errorDisplay.style.display = 'block';
-                    errorDisplay.innerText = msg;
+                    errorDisplay.innerText += msg + '\n';
                 }
             }
 
             async function transformAndFetch(url) {
-                // Handle base URL for relative paths correctly
                 const normalizedUrl = new URL(url, window.location.href).href;
-                if (cache.has(normalizedUrl)) return cache.get(normalizedUrl);
+                if (cache.get(normalizedUrl)) return cache.get(normalizedUrl);
 
                 try {
-                    if (loadingText) loadingText.innerText = `Loading ${url.split('/').pop()}...`;
+                    let response = await fetch(normalizedUrl);
                     
-                    const response = await fetch(normalizedUrl);
-                    if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
-                    let code = await response.text();
+                    // Fallback mechanism for omitted extensions
+                    if (!response.ok && !/\.[jt]sx?$/.test(url)) {
+                        const extensions = ['.tsx', '.ts', '.js'];
+                        for (const ext of extensions) {
+                            const tryUrl = normalizedUrl + ext;
+                            response = await fetch(tryUrl);
+                            if (response.ok) {
+                                // Found it! Update current URL context for relative imports
+                                return transformAndFetch(tryUrl);
+                            }
+                        }
+                    }
 
-                    // More robust regex to handle various import/export styles
+                    if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
+                    
+                    let code = await response.text();
                     const importRegex = /(import|export)\s+[\s\S]*?from\s+['"](\.\.?\/[^'"]+)['"]/g;
                     const matches = [...code.matchAll(importRegex)];
 
                     for (const match of matches) {
                         const originalPath = match[2];
-                        let targetPath = originalPath;
-                        
-                        // Auto-append .tsx if no extension is present
-                        if (!/\.[jt]sx?$/.test(originalPath)) {
-                            targetPath += '.tsx';
-                        }
-                        
-                        const absoluteUrl = new URL(targetPath, normalizedUrl).href;
+                        const absoluteUrl = new URL(originalPath, normalizedUrl).href;
                         const blobUrl = await transformAndFetch(absoluteUrl);
-                        
-                        // Replace only the path string in the original match
                         const updatedStatement = match[0].replace(originalPath, blobUrl);
                         code = code.replace(match[0], updatedStatement);
                     }
 
-                    // Transpile with Babel
                     const transformed = Babel.transform(code, {
                         presets: [
                             ['react', { runtime: 'automatic' }],
@@ -167,23 +155,13 @@
             }
 
             try {
-                // Ensure we wait for Babel to be ready if needed (usually it is sync)
-                if (typeof Babel === 'undefined') {
-                    throw new Error("Babel Standalone failed to load.");
-                }
-
-                // Start from index.tsx
                 const entryBlobUrl = await transformAndFetch('./index.tsx');
-                
-                // Inject the transpiled entry point as a module
                 const script = document.createElement('script');
                 script.type = 'module';
                 script.src = entryBlobUrl;
                 document.head.appendChild(script);
-                
-                console.info("SpendWise: Bootloader success.");
-            } catch (criticalErr) {
-                console.error("SpendWise: Fatal boot error.", criticalErr);
+            } catch (err) {
+                console.error("SpendWise: Bootloader critical failure.", err);
             }
         })();
     </script>

@@ -1,7 +1,6 @@
-
 import React from 'react';
-import { Transaction } from '../types';
-import { CATEGORY_CONFIG } from '../constants';
+import { Transaction } from '../types.ts';
+import { CATEGORY_CONFIG } from '../constants.tsx';
 import { format } from 'date-fns';
 import { Trash2, RefreshCw, Pencil } from 'lucide-react';
 
