@@ -15,6 +15,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- Babel Standalone for client-side transpilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <style>
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -40,7 +43,7 @@
             align-items: center;
             justify-content: center;
             z-index: 1000;
-            transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: opacity 0.4s ease-out;
         }
         .loading-screen.fade-out {
             opacity: 0;
@@ -63,39 +66,101 @@
             backdrop-filter: blur(20px) saturate(180%);
             -webkit-backdrop-filter: blur(20px) saturate(180%);
         }
-        /* Custom scrollbar for mobile feel */
-        .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .hide-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 
     <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@19.0.0",
-        "react/": "https://esm.sh/react@19.0.0/",
-        "react-dom": "https://esm.sh/react-dom@19.0.0",
-        "react-dom/": "https://esm.sh/react-dom@19.0.0/",
-        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-        "recharts": "https://esm.sh/recharts@2.15.0?external=react,react-dom",
-        "lucide-react": "https://esm.sh/lucide-react@0.473.0?external=react,react-dom",
-        "date-fns": "https://esm.sh/date-fns@4.1.0"
-      }
-    }
-    </script>
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "recharts": "https://esm.sh/recharts@2.15.0?external=react,react-dom",
+    "lucide-react": "https://esm.sh/lucide-react@0.473.0?external=react,react-dom",
+    "date-fns": "https://esm.sh/date-fns@4.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/"
+  }
+}
+</script>
 </head>
 <body>
     <div id="loading" class="loading-screen">
         <div class="spinner"></div>
-        <p class="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">SpendWise</p>
+        <p id="loading-text" class="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">Initializing...</p>
     </div>
 
     <div id="root"></div>
     
-    <script type="module" src="./index.tsx"></script>
+    <script>
+        /**
+         * Custom Babel/Fetch Loader
+         * This script fetches local .tsx/.ts files, transpiles them using Babel,
+         * resolves relative imports, and executes the entry point as a module.
+         */
+        (async function boot() {
+            const loadingText = document.getElementById('loading-text');
+            const cache = new Map();
+
+            async function transformAndFetch(url) {
+                const normalizedUrl = new URL(url, window.location.href).href;
+                if (cache.has(normalizedUrl)) return cache.get(normalizedUrl);
+
+                try {
+                    if (loadingText) loadingText.innerText = `Loading ${url.split('/').pop()}...`;
+                    
+                    const response = await fetch(normalizedUrl);
+                    if (!response.ok) throw new Error(`Failed to fetch ${url}`);
+                    let code = await response.text();
+
+                    // Resolve relative imports (e.g., import App from './App.tsx')
+                    // This regex finds relative paths starting with ./ or ../
+                    const importRegex = /from\s+['"](\.\.?\/[^'"]+)['"]/g;
+                    const matches = [...code.matchAll(importRegex)];
+
+                    for (const match of matches) {
+                        const relativePath = match[1];
+                        // Ensure extensions are present for local files
+                        let fullRelativePath = relativePath;
+                        if (!relativePath.endsWith('.tsx') && !relativePath.endsWith('.ts') && !relativePath.endsWith('.js')) {
+                            fullRelativePath += '.tsx'; 
+                        }
+                        
+                        const absoluteImportUrl = new URL(fullRelativePath, normalizedUrl).href;
+                        const transformedUrl = await transformAndFetch(absoluteImportUrl);
+                        code = code.replace(match[1], transformedUrl);
+                    }
+
+                    // Transpile TSX/TS to JS
+                    const transformed = Babel.transform(code, {
+                        presets: ['react', ['typescript', { isTSX: true, allExtensions: true }]],
+                        filename: normalizedUrl
+                    }).code;
+
+                    const blob = new Blob([transformed], { type: 'application/javascript' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    cache.set(normalizedUrl, blobUrl);
+                    return blobUrl;
+                } catch (err) {
+                    console.error(`Loader Error at ${url}:`, err);
+                    throw err;
+                }
+            }
+
+            try {
+                // Start from index.tsx
+                const entryBlobUrl = await transformAndFetch('./index.tsx');
+                const script = document.createElement('script');
+                script.type = 'module';
+                script.src = entryBlobUrl;
+                document.head.appendChild(script);
+                console.info("SpendWise: Loader finished successfully.");
+            } catch (criticalErr) {
+                console.error("SpendWise: Bootloader failed.", criticalErr);
+                if (loadingText) loadingText.innerText = "Error Loading App";
+            }
+        })();
+    </script>
 </body>
 </html>
