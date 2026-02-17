@@ -48,6 +48,13 @@
             z-index: 1000;
             transition: opacity 0.4s ease;
         }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .ios-blur {
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+        }
     </style>
 
     <script type="importmap">
@@ -75,6 +82,7 @@
     <div id="error-display"></div>
 
     <script>
+        const APP_VERSION = Date.now(); // Cache buster
         const displayError = (title, msg, details = "") => {
             const display = document.getElementById('error-display');
             display.style.display = 'block';
@@ -97,7 +105,6 @@
         const moduleCache = new Map();
         const loadingText = document.getElementById('loading-text');
 
-        // Simple function to resolve paths like './App' or '../constants' relative to a directory
         function resolvePath(baseDir, relativePath) {
             const parts = baseDir.split('/').filter(p => p && p !== '.');
             const relParts = relativePath.split('/');
@@ -112,7 +119,9 @@
             const extensions = ['', '.tsx', '.ts', '.js'];
             for (const ext of extensions) {
                 try {
-                    const response = await fetch(path + ext);
+                    // Added cache buster to URL
+                    const url = `${path}${ext}?v=${APP_VERSION}`;
+                    const response = await fetch(url);
                     if (response.ok) return { code: await response.text(), finalPath: path + ext };
                 } catch (e) {}
             }
@@ -128,22 +137,16 @@
             
             const currentDir = finalPath.substring(0, finalPath.lastIndexOf('/'));
 
-            // Regex to find relative imports: from './path' or from '../path'
             const importRegex = /from\s+['"](\.\.?\/[^'"]+)['"]/g;
             const matches = [...code.matchAll(importRegex)];
             
             for (const match of matches) {
                 const relativeImportPath = match[1];
                 const resolvedFullPath = resolvePath(currentDir, relativeImportPath);
-                
-                // Recursively load the dependency
                 const blobUrl = await loadModule(resolvedFullPath);
-                
-                // Replace the text in the code with the absolute Blob URL
                 code = code.split(match[0]).join(`from '${blobUrl}'`);
             }
 
-            // Transpile JSX/TS to JS
             const transpiled = Babel.transform(code, {
                 presets: ['typescript', 'react'],
                 filename: finalPath
@@ -158,16 +161,12 @@
         async function bootstrap() {
             try {
                 if (typeof Babel === 'undefined') throw new Error("Babel Standalone failed to load.");
-                
-                // Start the recursive loading process from index.tsx
                 const entryUrl = await loadModule('./index.tsx');
-                
                 const script = document.createElement('script');
                 script.type = 'module';
                 script.src = entryUrl;
                 document.head.appendChild(script);
-                
-                console.log("SpendWise modules loaded successfully.");
+                console.log("SpendWise modules loaded with version " + APP_VERSION);
             } catch (err) {
                 displayError("Bootstrap Error", err.message, err.stack);
             }
