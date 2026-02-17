@@ -173,7 +173,10 @@ const App: React.FC = () => {
         return (
           <div className="px-5 pt-8 pb-32 animate-in slide-in-from-bottom-4 duration-400">
             <h2 className="text-2xl font-bold mb-6 text-gray-900">New Transaction</h2>
-            <TransactionInput onAddTransaction={handleSaveTransaction} />
+            <TransactionInput 
+              onAddTransaction={handleSaveTransaction} 
+              onCancel={() => setActiveTab('Dashboard')}
+            />
           </div>
         );
       case 'Transactions':

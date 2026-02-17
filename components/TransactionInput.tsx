@@ -172,33 +172,26 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
           </div>
         </div>
 
-        {!onCancel ? (
+        <div className="flex flex-col gap-3 mt-10">
           <button
             type="submit"
-            className="w-full mt-10 bg-black text-white font-bold py-5 rounded-[20px] shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 hover:bg-gray-900"
+            className={`w-full font-bold py-5 rounded-[20px] shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${initialData ? 'bg-blue-500 text-white' : 'bg-black text-white hover:bg-gray-900'}`}
           >
             <Check size={20} />
-            Confirm Transaction
+            {initialData ? 'Save Changes' : 'Confirm Transaction'}
           </button>
-        ) : (
-          <div className="flex flex-col gap-3 mt-10">
-            <button
-              type="submit"
-              className="w-full bg-blue-500 text-white font-bold py-5 rounded-[20px] shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-            >
-              <Check size={20} />
-              Save Changes
-            </button>
+          
+          {onCancel && (
             <button
               type="button"
               onClick={onCancel}
-              className="w-full py-4 text-gray-400 font-bold hover:text-gray-600 transition-all flex items-center justify-center gap-2"
+              className="w-full py-4 text-gray-400 font-bold hover:text-gray-600 transition-all flex items-center justify-center gap-2 active:scale-95"
             >
               <X size={18} />
               Cancel
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </form>
     </div>
   );
