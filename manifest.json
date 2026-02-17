@@ -1,0 +1,17 @@
+
+{
+  "short_name": "SpendWise",
+  "name": "SpendWise Personal Finance",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/10384/10384160.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#F2F2F7",
+  "background_color": "#F2F2F7"
+}

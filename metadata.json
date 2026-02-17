@@ -1,0 +1,5 @@
+{
+  "name": "SpendWise",
+  "description": "A sophisticated iOS-style spending tracker to manually manage transactions and visualize financial health with interactive charts.",
+  "requestFramePermissions": []
+}
