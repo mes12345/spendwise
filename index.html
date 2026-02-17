@@ -62,48 +62,59 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .ios-blur {
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
+        .error-container {
+            max-width: 80%;
+            text-align: center;
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 1rem;
+            display: none;
         }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 
     <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@19.0.0",
-    "react-dom": "https://esm.sh/react-dom@19.0.0",
-    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-    "recharts": "https://esm.sh/recharts@2.15.0?external=react,react-dom",
-    "lucide-react": "https://esm.sh/lucide-react@0.473.0?external=react,react-dom",
-    "date-fns": "https://esm.sh/date-fns@4.1.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/"
-  }
-}
-</script>
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.0.0",
+        "react/": "https://esm.sh/react@19.0.0/",
+        "react-dom": "https://esm.sh/react-dom@19.0.0",
+        "react-dom/": "https://esm.sh/react-dom@19.0.0/",
+        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+        "recharts": "https://esm.sh/recharts@2.15.0?external=react,react-dom",
+        "lucide-react": "https://esm.sh/lucide-react@0.473.0?external=react,react-dom",
+        "date-fns": "https://esm.sh/date-fns@4.1.0"
+      }
+    }
+    </script>
 </head>
 <body>
     <div id="loading" class="loading-screen">
         <div class="spinner"></div>
         <p id="loading-text" class="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">Initializing...</p>
+        <div id="error-display" class="error-container"></div>
     </div>
 
     <div id="root"></div>
     
     <script>
         /**
-         * Custom Babel/Fetch Loader
-         * This script fetches local .tsx/.ts files, transpiles them using Babel,
-         * resolves relative imports, and executes the entry point as a module.
+         * Enhanced Babel/Fetch Loader for GitHub Pages
          */
         (async function boot() {
             const loadingText = document.getElementById('loading-text');
+            const errorDisplay = document.getElementById('error-display');
             const cache = new Map();
 
+            function showError(msg) {
+                if (loadingText) loadingText.innerText = "Load Failed";
+                if (errorDisplay) {
+                    errorDisplay.style.display = 'block';
+                    errorDisplay.innerText = msg;
+                }
+            }
+
             async function transformAndFetch(url) {
+                // Handle base URL for relative paths correctly
                 const normalizedUrl = new URL(url, window.location.href).href;
                 if (cache.has(normalizedUrl)) return cache.get(normalizedUrl);
 
@@ -111,30 +122,36 @@
                     if (loadingText) loadingText.innerText = `Loading ${url.split('/').pop()}...`;
                     
                     const response = await fetch(normalizedUrl);
-                    if (!response.ok) throw new Error(`Failed to fetch ${url}`);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
                     let code = await response.text();
 
-                    // Resolve relative imports (e.g., import App from './App.tsx')
-                    // This regex finds relative paths starting with ./ or ../
-                    const importRegex = /from\s+['"](\.\.?\/[^'"]+)['"]/g;
+                    // More robust regex to handle various import/export styles
+                    const importRegex = /(import|export)\s+[\s\S]*?from\s+['"](\.\.?\/[^'"]+)['"]/g;
                     const matches = [...code.matchAll(importRegex)];
 
                     for (const match of matches) {
-                        const relativePath = match[1];
-                        // Ensure extensions are present for local files
-                        let fullRelativePath = relativePath;
-                        if (!relativePath.endsWith('.tsx') && !relativePath.endsWith('.ts') && !relativePath.endsWith('.js')) {
-                            fullRelativePath += '.tsx'; 
+                        const originalPath = match[2];
+                        let targetPath = originalPath;
+                        
+                        // Auto-append .tsx if no extension is present
+                        if (!/\.[jt]sx?$/.test(originalPath)) {
+                            targetPath += '.tsx';
                         }
                         
-                        const absoluteImportUrl = new URL(fullRelativePath, normalizedUrl).href;
-                        const transformedUrl = await transformAndFetch(absoluteImportUrl);
-                        code = code.replace(match[1], transformedUrl);
+                        const absoluteUrl = new URL(targetPath, normalizedUrl).href;
+                        const blobUrl = await transformAndFetch(absoluteUrl);
+                        
+                        // Replace only the path string in the original match
+                        const updatedStatement = match[0].replace(originalPath, blobUrl);
+                        code = code.replace(match[0], updatedStatement);
                     }
 
-                    // Transpile TSX/TS to JS
+                    // Transpile with Babel
                     const transformed = Babel.transform(code, {
-                        presets: ['react', ['typescript', { isTSX: true, allExtensions: true }]],
+                        presets: [
+                            ['react', { runtime: 'automatic' }],
+                            ['typescript', { isTSX: true, allExtensions: true }]
+                        ],
                         filename: normalizedUrl
                     }).code;
 
@@ -144,21 +161,29 @@
                     return blobUrl;
                 } catch (err) {
                     console.error(`Loader Error at ${url}:`, err);
+                    showError(err.message);
                     throw err;
                 }
             }
 
             try {
+                // Ensure we wait for Babel to be ready if needed (usually it is sync)
+                if (typeof Babel === 'undefined') {
+                    throw new Error("Babel Standalone failed to load.");
+                }
+
                 // Start from index.tsx
                 const entryBlobUrl = await transformAndFetch('./index.tsx');
+                
+                // Inject the transpiled entry point as a module
                 const script = document.createElement('script');
                 script.type = 'module';
                 script.src = entryBlobUrl;
                 document.head.appendChild(script);
-                console.info("SpendWise: Loader finished successfully.");
+                
+                console.info("SpendWise: Bootloader success.");
             } catch (criticalErr) {
-                console.error("SpendWise: Bootloader failed.", criticalErr);
-                if (loadingText) loadingText.innerText = "Error Loading App";
+                console.error("SpendWise: Fatal boot error.", criticalErr);
             }
         })();
     </script>
