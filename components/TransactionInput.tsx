@@ -1,10 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Calendar, Tag, User, AlignLeft, RefreshCw, Check, X, Sparkles, Loader2 } from 'lucide-react';
-import { Transaction, Category } from '../types';
-import { CATEGORY_CONFIG } from '../constants';
+import { Calendar, Tag, User, AlignLeft, RefreshCw, Check, X } from 'lucide-react';
+import { Transaction, Category } from '../types.ts';
+import { CATEGORY_CONFIG } from '../constants.tsx';
 import { format, parse } from 'date-fns';
-import { parseTransaction } from '../services/geminiService';
 
 interface TransactionInputProps {
   onAddTransaction: (t: Omit<Transaction, 'id' | 'date'>, date: string, isRecurring: boolean) => void;
@@ -13,8 +12,6 @@ interface TransactionInputProps {
 }
 
 const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, initialData, onCancel }) => {
-  const [magicText, setMagicText] = useState('');
-  const [isParsing, setIsParsing] = useState(false);
   const [formData, setFormData] = useState({
     description: '',
     vendor: '',
@@ -36,27 +33,6 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
       });
     }
   }, [initialData]);
-
-  const handleMagicParse = async () => {
-    if (!magicText.trim()) return;
-    
-    setIsParsing(true);
-    try {
-      const result = await parseTransaction(magicText);
-      setFormData(prev => ({
-        ...prev,
-        description: result.description || prev.description,
-        amount: result.amount ? result.amount.toString() : prev.amount,
-        category: (result.category as Category) || prev.category,
-        vendor: result.vendor || result.description || prev.vendor // AI usually puts store in description or vendor
-      }));
-      setMagicText(''); // Clear magic input after successful parse
-    } catch (error) {
-      console.error("Magic parse failed", error);
-    } finally {
-      setIsParsing(false);
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,33 +70,6 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
 
   return (
     <div className={`w-full ${!initialData ? 'animate-in fade-in slide-in-from-bottom-2 duration-300' : ''}`}>
-      
-      {!initialData && (
-        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl p-5 mb-6 shadow-lg shadow-blue-100">
-          <label className="flex items-center gap-2 text-white/80 text-[10px] font-bold uppercase tracking-widest mb-3">
-            <Sparkles size={12} />
-            Magic AI Entry
-          </label>
-          <div className="relative">
-            <textarea 
-              rows={2}
-              placeholder="e.g., 'Spent $50.99 on Abercrombie jeans'..."
-              value={magicText}
-              onChange={(e) => setMagicText(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-2xl p-4 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/30 resize-none font-medium"
-            />
-            <button 
-              onClick={handleMagicParse}
-              disabled={isParsing || !magicText.trim()}
-              className="absolute right-3 bottom-3 bg-white text-blue-600 px-4 py-2 rounded-xl text-xs font-bold shadow-sm active:scale-95 disabled:opacity-50 transition-all flex items-center gap-2"
-            >
-              {isParsing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-              {isParsing ? 'Thinking...' : 'Parse'}
-            </button>
-          </div>
-        </div>
-      )}
-
       <form 
         id={initialData ? "edit-transaction-form" : "add-transaction-form"}
         onSubmit={handleSubmit} 
