@@ -4,8 +4,8 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, 
   XAxis, YAxis, Tooltip, Area, CartesianGrid, Line, ComposedChart 
 } from 'recharts';
-import { Transaction, Timeframe, Category } from '../types';
-import { CATEGORY_CONFIG } from '../constants';
+import { Transaction, Timeframe, Category } from '../types.ts';
+import { CATEGORY_CONFIG } from '../constants.tsx';
 import { 
   format, isWithinInterval, startOfMonth, endOfMonth, 
   subMonths, startOfYear, eachDayOfInterval, isSameDay,
