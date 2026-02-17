@@ -1,39 +1,45 @@
 
 import React from 'react';
-import ReactDOM from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 
-const init = () => {
-    console.log("SpendWise: Initializing application...");
-    const container = document.getElementById('root');
-    const loader = document.getElementById('loading');
-    
-    if (!container) {
-        console.error("SpendWise: Root container not found");
-        return;
-    }
+const mountApp = () => {
+  console.info("SpendWise: Booting...");
+  const rootElement = document.getElementById('root');
+  const loader = document.getElementById('loading');
 
-    try {
-        const root = ReactDOM.createRoot(container);
-        root.render(
-            <React.StrictMode>
-                <App />
-            </React.StrictMode>
-        );
+  if (!rootElement) {
+    console.error("SpendWise: Critical error - #root element not found in DOM.");
+    return;
+  }
 
-        // Success: Hide loader
-        if (loader) {
-            loader.classList.add('hidden');
-            setTimeout(() => {
-                loader.style.display = 'none';
-            }, 500);
-        }
-    } catch (error) {
-        console.error("SpendWise: Failed to render app", error);
-        // Force hide loader so user sees potential error state
-        if (loader) loader.style.display = 'none';
+  try {
+    const root = createRoot(rootElement);
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+
+    // Fade out the loader once the react tree is mounted
+    if (loader) {
+      setTimeout(() => {
+        loader.classList.add('fade-out');
+        setTimeout(() => {
+          loader.style.display = 'none';
+        }, 500);
+      }, 300);
     }
+    console.info("SpendWise: App mounted successfully.");
+  } catch (error) {
+    console.error("SpendWise: Failed to render the application.", error);
+    if (loader) loader.style.display = 'none';
+  }
 };
 
-// Execute immediately since module scripts are deferred by default
-init();
+// Start the application
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', mountApp);
+} else {
+  mountApp();
+}
