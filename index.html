@@ -19,7 +19,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Babel Standalone for in-browser transpilation of TSX -->
+    <!-- Babel Standalone -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
@@ -32,11 +32,7 @@
             height: 100%;
             overflow: hidden;
         }
-        #root {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
+        #root { height: 100%; display: flex; flex-direction: column; }
         #error-display {
             display: none;
             position: fixed;
@@ -48,7 +44,6 @@
             overflow: auto;
             font-family: monospace;
             font-size: 13px;
-            line-height: 1.5;
         }
         .loading-screen {
             position: fixed;
@@ -59,7 +54,7 @@
             align-items: center;
             justify-content: center;
             z-index: 1000;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.4s ease;
         }
     </style>
 
@@ -78,67 +73,73 @@
 }
 </script>
 </head>
-<body class="overflow-hidden">
+<body>
     <div id="loading" class="loading-screen">
-        <div class="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p class="font-bold text-gray-400 uppercase tracking-widest text-[10px]">Loading SpendWise</p>
+        <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="font-bold text-gray-400 uppercase tracking-widest text-[10px]">Bootstrapping SpendWise</p>
     </div>
 
     <div id="root"></div>
     <div id="error-display"></div>
 
     <script>
-        // Enhanced Error Display
-        window.onerror = function(msg, url, line, col, error) {
+        const displayError = (title, msg, details = "") => {
             const display = document.getElementById('error-display');
             display.style.display = 'block';
             display.innerHTML += `
-                <div style="margin-bottom: 20px; border-bottom: 1px solid #eee; pb-4">
-                    <div style="font-weight: bold; margin-bottom: 5px;">[Runtime Error]</div>
-                    <div>${msg}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 5px;">
-                        File: ${url}<br>
-                        Line: ${line}, Column: ${col}
-                    </div>
+                <div style="margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                    <div style="font-weight: bold; color: #000;">[${title}]</div>
+                    <div style="margin-top: 5px;">${msg}</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 5px; white-space: pre-wrap;">${details}</div>
                 </div>`;
+        };
+
+        window.onerror = (msg, url, line, col, error) => {
+            displayError("Runtime Error", msg, `File: ${url}\nLine: ${line}, Col: ${col}`);
             return false;
         };
 
-        // Babel initialization with correct capitalization
-        // Note: Using a timeout to ensure Babel is definitely ready
-        window.addEventListener('load', () => {
-            if (typeof Babel !== 'undefined') {
-                Babel.registerPreset("spendwise-preset", {
-                    presets: [
-                        [Babel.availablePresets["react"]],
-                        [Babel.availablePresets["typescript"]]
-                    ]
-                });
-            } else {
-                console.error("Babel failed to load from CDN.");
-                document.getElementById('error-display').style.display = 'block';
-                document.getElementById('error-display').innerText = "Critical Error: Could not load the transpiler (Babel). Please check your internet connection.";
-            }
-        });
-    </script>
+        window.onunhandledrejection = (event) => {
+            displayError("Promise Rejection", event.reason?.message || "Unknown error", event.reason?.stack);
+        };
 
-    <!-- Transpile index.tsx directly -->
-    <script 
-        type="text/babel" 
-        data-type="module" 
-        src="./index.tsx" 
-        data-presets="react,typescript">
-    </script>
-    
-    <script>
-        // Auto-hide loader after 2 seconds regardless of state (safeguard)
-        setTimeout(() => {
-            const loader = document.getElementById('loading');
-            if (loader) {
-                loader.style.opacity = '0';
-                setTimeout(() => loader.style.display = 'none', 500);
+        // Manual Bootstrapper for TSX files on GitHub Pages
+        async function bootstrap() {
+            try {
+                // 1. Wait for Babel
+                if (typeof Babel === 'undefined') throw new Error("Babel failed to load.");
+
+                // 2. Fetch the entry point
+                const response = await fetch('./index.tsx');
+                if (!response.ok) throw new Error(`Failed to fetch index.tsx: ${response.status}`);
+                const code = await response.text();
+
+                // 3. Transpile the entry point
+                // We use the 'typescript' and 'react' presets
+                const transformed = Babel.transform(code, {
+                    presets: ['typescript', 'react'],
+                    filename: 'index.tsx',
+                    sourceMaps: 'inline'
+                }).code;
+
+                // 4. Create a blob and execute it as a module
+                const blob = new Blob([transformed], { type: 'application/javascript' });
+                const url = URL.createObjectURL(blob);
+                
+                const script = document.createElement('script');
+                script.type = 'module';
+                script.src = url;
+                document.head.appendChild(script);
+
+                console.log("SpendWise Bootstrapped successfully.");
+            } catch (err) {
+                displayError("Bootstrap Failed", err.message, err.stack);
+                const loader = document.getElementById('loading');
+                if (loader) loader.innerHTML = `<p style="color:red; font-weight:bold;">Failed to Load App</p>`;
             }
-        }, 3000);
+        }
+
+        window.addEventListener('load', bootstrap);
     </script>
 </body>
 </html>
