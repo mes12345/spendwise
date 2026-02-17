@@ -4,29 +4,36 @@ import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 
 const init = () => {
+    console.log("SpendWise: Initializing application...");
     const container = document.getElementById('root');
-    if (!container) return;
-
-    const root = ReactDOM.createRoot(container);
-    root.render(
-        <React.StrictMode>
-            <App />
-        </React.StrictMode>
-    );
-
-    // Fade out loader
     const loader = document.getElementById('loading');
-    if (loader) {
-        loader.style.opacity = '0';
-        setTimeout(() => {
-            loader.style.display = 'none';
-        }, 500);
+    
+    if (!container) {
+        console.error("SpendWise: Root container not found");
+        return;
+    }
+
+    try {
+        const root = ReactDOM.createRoot(container);
+        root.render(
+            <React.StrictMode>
+                <App />
+            </React.StrictMode>
+        );
+
+        // Success: Hide loader
+        if (loader) {
+            loader.classList.add('hidden');
+            setTimeout(() => {
+                loader.style.display = 'none';
+            }, 500);
+        }
+    } catch (error) {
+        console.error("SpendWise: Failed to render app", error);
+        // Force hide loader so user sees potential error state
+        if (loader) loader.style.display = 'none';
     }
 };
 
-// Start application
-if (document.readyState === 'complete') {
-    init();
-} else {
-    window.addEventListener('load', init);
-}
+// Execute immediately since module scripts are deferred by default
+init();
