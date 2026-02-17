@@ -12,14 +12,17 @@ const mountApp = () => {
         <App />
       </React.StrictMode>
     );
+    
+    // Hide loader if it's still there
+    const loader = document.getElementById('loading');
+    if (loader) {
+      loader.style.opacity = '0';
+      setTimeout(() => loader.style.display = 'none', 500);
+    }
   } else {
     console.error("Could not find root element to mount SpendWise");
   }
 };
 
-// Ensure DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mountApp);
-} else {
-    mountApp();
-}
+// Start the app
+mountApp();
