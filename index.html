@@ -6,10 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>SpendWise</title>
     
-    <!-- PWA Manifest -->
     <link rel="manifest" href="./manifest.json">
-
-    <!-- iOS PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="SpendWise">
@@ -28,8 +25,7 @@
             -webkit-tap-highlight-color: transparent;
             background-color: #F2F2F7;
             position: fixed;
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             overflow: hidden;
         }
         #root { height: 100%; display: flex; flex-direction: column; }
@@ -46,13 +42,9 @@
             font-size: 13px;
         }
         .loading-screen {
-            position: fixed;
-            inset: 0;
+            position: fixed; inset: 0;
             background: #F2F2F7;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
             z-index: 1000;
             transition: opacity 0.4s ease;
         }
@@ -76,7 +68,7 @@
 <body>
     <div id="loading" class="loading-screen">
         <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p class="font-bold text-gray-400 uppercase tracking-widest text-[10px]">Bootstrapping SpendWise</p>
+        <p id="loading-text" class="font-bold text-gray-400 uppercase tracking-widest text-[10px]">Initializing...</p>
     </div>
 
     <div id="root"></div>
@@ -96,46 +88,65 @@
 
         window.onerror = (msg, url, line, col, error) => {
             displayError("Runtime Error", msg, `File: ${url}\nLine: ${line}, Col: ${col}`);
-            return false;
         };
 
         window.onunhandledrejection = (event) => {
             displayError("Promise Rejection", event.reason?.message || "Unknown error", event.reason?.stack);
         };
 
-        // Manual Bootstrapper for TSX files on GitHub Pages
+        const moduleCache = new Map();
+        const loadingText = document.getElementById('loading-text');
+
+        async function loadModule(path) {
+            // Normalize path for cache
+            const normalizedPath = path.startsWith('./') ? path : './' + path;
+            if (moduleCache.has(normalizedPath)) return moduleCache.get(normalizedPath);
+
+            loadingText.innerText = `Loading ${normalizedPath}...`;
+
+            const response = await fetch(normalizedPath);
+            if (!response.ok) throw new Error(`Could not fetch ${normalizedPath}: ${response.status}`);
+            let code = await response.text();
+
+            // Find all relative imports: from './Component.tsx'
+            // We need to resolve these recursively before transpiling this file
+            const importRegex = /from\s+['"](\.\/[^'"]+\.te?sx?)['"]/g;
+            const matches = [...code.matchAll(importRegex)];
+            
+            for (const match of matches) {
+                const subPath = match[1];
+                const blobUrl = await loadModule(subPath);
+                // Replace the relative path with the Blob URL
+                code = code.split(match[0]).join(`from '${blobUrl}'`);
+            }
+
+            // Transpile the code with relative paths already resolved to Blob URLs
+            const transpiled = Babel.transform(code, {
+                presets: ['typescript', 'react'],
+                filename: normalizedPath
+            }).code;
+
+            const blob = new Blob([transpiled], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            moduleCache.set(normalizedPath, url);
+            return url;
+        }
+
         async function bootstrap() {
             try {
-                // 1. Wait for Babel
-                if (typeof Babel === 'undefined') throw new Error("Babel failed to load.");
-
-                // 2. Fetch the entry point
-                const response = await fetch('./index.tsx');
-                if (!response.ok) throw new Error(`Failed to fetch index.tsx: ${response.status}`);
-                const code = await response.text();
-
-                // 3. Transpile the entry point
-                // We use the 'typescript' and 'react' presets
-                const transformed = Babel.transform(code, {
-                    presets: ['typescript', 'react'],
-                    filename: 'index.tsx',
-                    sourceMaps: 'inline'
-                }).code;
-
-                // 4. Create a blob and execute it as a module
-                const blob = new Blob([transformed], { type: 'application/javascript' });
-                const url = URL.createObjectURL(blob);
+                if (typeof Babel === 'undefined') throw new Error("Babel Standalone not found.");
+                
+                // Start with index.tsx
+                const entryUrl = await loadModule('./index.tsx');
                 
                 const script = document.createElement('script');
                 script.type = 'module';
-                script.src = url;
+                script.src = entryUrl;
                 document.head.appendChild(script);
-
-                console.log("SpendWise Bootstrapped successfully.");
+                
+                console.log("SpendWise modules loaded successfully.");
             } catch (err) {
-                displayError("Bootstrap Failed", err.message, err.stack);
-                const loader = document.getElementById('loading');
-                if (loader) loader.innerHTML = `<p style="color:red; font-weight:bold;">Failed to Load App</p>`;
+                displayError("Bootstrap Error", err.message, err.stack);
             }
         }
 
