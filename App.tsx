@@ -5,13 +5,13 @@ import TopHeader from './components/TopHeader.tsx';
 import Dashboard from './components/Dashboard.tsx';
 import TransactionInput from './components/TransactionInput.tsx';
 import TransactionList from './components/TransactionList.tsx';
-import BudgetSetter from './components/BudgetSetter.tsx';
+import SettingsModal from './components/SettingsModal.tsx';
 import ProposedSubscriptions from './components/ProposedSubscriptions.tsx';
 import { Transaction, Timeframe, Subscription } from './types.ts';
 import { INITIAL_TRANSACTIONS } from './constants.tsx';
-import { isSameMonth } from 'date-fns';
+import { isSameMonth, format } from 'date-fns';
 
-type Tab = 'Dashboard' | 'Add' | 'Transactions' | 'Budget';
+type Tab = 'Dashboard' | 'Add' | 'Transactions';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('Dashboard');
@@ -28,7 +28,7 @@ const App: React.FC = () => {
     return saved ? parseFloat(saved) : 2000;
   });
   const [timeframe, setTimeframe] = useState<Timeframe>('Month');
-  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   useEffect(() => {
@@ -80,11 +80,15 @@ const App: React.FC = () => {
   };
 
   const deleteTransaction = (id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
+    if (window.confirm("Delete this transaction?")) {
+      setTransactions(prev => prev.filter(t => t.id !== id));
+    }
   };
 
   const deleteSubscription = (id: string) => {
-    setSubscriptions(prev => prev.filter(s => s.id !== id));
+    if (window.confirm("Remove this recurring payment?")) {
+      setSubscriptions(prev => prev.filter(s => s.id !== id));
+    }
   };
 
   const acceptProposedSubscription = (sub: Subscription) => {
@@ -102,6 +106,38 @@ const App: React.FC = () => {
     };
 
     setTransactions(prev => [newTransaction, ...prev]);
+  };
+
+  const handleExportData = () => {
+    const exportData = {
+      transactions,
+      subscriptions,
+      budget,
+      exportDate: new Date().toISOString(),
+      app: 'SpendWise'
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `spendwise_backup_${format(new Date(), 'yyyy-MM-dd')}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportData = (data: any) => {
+    if (data.app === 'SpendWise' && data.transactions) {
+      setTransactions(data.transactions);
+      setSubscriptions(data.subscriptions || []);
+      setBudget(data.budget || 2000);
+      alert("Backup restored successfully!");
+      setShowSettings(false);
+    } else {
+      alert("Invalid backup file. Please ensure you are uploading a valid SpendWise export.");
+    }
   };
 
   const proposedSubscriptions = useMemo(() => {
@@ -170,7 +206,7 @@ const App: React.FC = () => {
     }
     return (
       <button 
-        onClick={() => setShowBudgetModal(true)}
+        onClick={() => setShowSettings(true)}
         aria-label="Open settings"
         className="p-2 bg-gray-200/50 rounded-full text-gray-600 hover:bg-gray-200 active:scale-95 transition-all"
       >
@@ -213,14 +249,16 @@ const App: React.FC = () => {
         ))}
       </nav>
 
-      {showBudgetModal && (
-        <BudgetSetter 
+      {showSettings && (
+        <SettingsModal 
           currentBudget={budget} 
-          onUpdate={(val) => {
+          onUpdateBudget={(val) => {
             setBudget(val);
-            setShowBudgetModal(false);
+            setShowSettings(false);
           }}
-          onClose={() => setShowBudgetModal(false)}
+          onExport={handleExportData}
+          onImport={handleImportData}
+          onClose={() => setShowSettings(false)}
         />
       )}
 
