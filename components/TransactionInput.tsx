@@ -163,9 +163,8 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
             </div>
             <button
               type="button"
-              disabled={!!initialData} 
               onClick={() => setFormData(prev => ({ ...prev, isRecurring: !prev.isRecurring }))}
-              className={`w-12 h-6 rounded-full transition-colors relative ${formData.isRecurring ? 'bg-blue-500' : 'bg-gray-200'} ${initialData ? 'opacity-50' : ''}`}
+              className={`w-12 h-6 rounded-full transition-colors relative ${formData.isRecurring ? 'bg-blue-500' : 'bg-gray-200'}`}
             >
               <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${formData.isRecurring ? 'right-1' : 'left-1'}`} />
             </button>

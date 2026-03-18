@@ -45,9 +45,45 @@ const App: React.FC = () => {
 
   const handleSaveTransaction = (t: Omit<Transaction, 'id' | 'date'>, date: string, isRecurring: boolean) => {
     if (editingTransaction) {
+      let subId = editingTransaction.subscriptionId;
+      
+      // If turned on recurring and didn't have one before
+      if (isRecurring && !subId) {
+        subId = Math.random().toString(36).substr(2, 9);
+        const newSub: Subscription = {
+          id: subId,
+          description: t.description,
+          vendor: t.vendor,
+          amount: t.amount,
+          category: t.category,
+          dayOfMonth: new Date(date).getDate(),
+          active: true
+        };
+        setSubscriptions(prev => [...prev, newSub]);
+      } 
+      // If turned off recurring
+      else if (!isRecurring && subId) {
+        subId = undefined;
+      }
+      // If it's still recurring, update the subscription details
+      else if (isRecurring && subId) {
+        setSubscriptions(prev => prev.map(s => 
+          s.id === subId 
+            ? { 
+                ...s, 
+                description: t.description, 
+                vendor: t.vendor, 
+                amount: t.amount, 
+                category: t.category,
+                dayOfMonth: new Date(date).getDate()
+              } 
+            : s
+        ));
+      }
+
       setTransactions(prev => prev.map(item => 
         item.id === editingTransaction.id 
-          ? { ...item, ...t, date } 
+          ? { ...item, ...t, date, subscriptionId: subId } 
           : item
       ));
       setEditingTransaction(null);
@@ -194,12 +230,18 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDoneClick = React.useCallback(() => {
+    const form = document.getElementById('add-transaction-form') as HTMLFormElement;
+    if (form) {
+      form.requestSubmit();
+    }
+  }, []);
+
   const rightHeaderElement = useMemo(() => {
     if (activeTab === 'Add') {
       return (
         <button 
-          form="add-transaction-form"
-          type="submit"
+          onClick={handleDoneClick}
           className="flex items-center gap-1.5 px-4 py-2 bg-blue-500 text-white rounded-full text-sm font-bold shadow-md active:scale-95 transition-all"
         >
           <Check size={16} />
@@ -216,7 +258,7 @@ const App: React.FC = () => {
         <Settings size={20} />
       </button>
     );
-  }, [activeTab]);
+  }, [activeTab, handleDoneClick]);
 
   const tabItems = [
     { id: 'Dashboard', icon: <LayoutGrid size={24} />, label: 'Overview' },
@@ -231,7 +273,7 @@ const App: React.FC = () => {
         rightElement={rightHeaderElement}
       />
       
-      <main className="flex-1 overflow-y-auto hide-scrollbar">
+      <main className="flex-1 overflow-y-auto hide-scrollbar bg-white relative z-0">
         {renderContent()}
       </main>
 
