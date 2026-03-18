@@ -47,6 +47,10 @@ const App: React.FC = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   useEffect(() => {
+    console.info("SpendWise: App component mounted.");
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem('spendwise_transactions', JSON.stringify(transactions));
   }, [transactions]);
 
