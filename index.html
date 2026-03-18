@@ -60,7 +60,7 @@
             font-family: monospace;
         }
     </style>
-    <link rel="stylesheet" href="./index.css">
+    <link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="loading" class="loading-screen">
@@ -73,38 +73,14 @@
     
     <script>
         // Failsafe to remove loader if script fails to load
-        window.addEventListener('error', (e) => {
-            console.error("SpendWise: Script error caught in index.html", e);
-            const errorDisplay = document.getElementById('error-display');
-            if (errorDisplay) {
-                errorDisplay.style.display = 'block';
-                errorDisplay.innerText = "Load Error: " + (e.message || "Unknown error");
-            }
-        });
-
         setTimeout(() => {
             const loader = document.getElementById('loading');
             if (loader && !loader.classList.contains('fade-out')) {
-                console.error("SpendWise: App failed to initialize within 5 seconds. Forcing loader removal.");
+                console.warn("SpendWise: App failed to initialize within 5 seconds. Forcing loader removal.");
                 loader.classList.add('fade-out');
-                const errorDisplay = document.getElementById('error-display');
-                if (errorDisplay) {
-                    errorDisplay.style.display = 'block';
-                    errorDisplay.innerText = "The app is taking longer than expected to load. Please check your internet connection or try refreshing.";
-                }
             }
         }, 5000);
     </script>
-    <script type="module" src="./index.tsx" onerror="handleScriptError()"></script>
-    <script>
-        function handleScriptError() {
-            console.error("SpendWise: Main script failed to load.");
-            const errorDisplay = document.getElementById('error-display');
-            if (errorDisplay) {
-                errorDisplay.style.display = 'block';
-                errorDisplay.innerText = "Failed to load the application script. This might be due to a network error or an unsupported browser. Please try refreshing the page.";
-            }
-        }
-    </script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
