@@ -15,8 +15,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
     <style>
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -63,6 +61,29 @@
 
     <div id="root"></div>
     
-    <script type="module" src="/index.tsx"></script>
+    <script>
+        // Global error handler to catch script load or execution errors
+        window.addEventListener('error', function(e) {
+            console.error("SpendWise: Global error caught:", e.message, "at", e.filename, ":", e.lineno);
+            const errorDisplay = document.getElementById('error-display');
+            if (errorDisplay) {
+                errorDisplay.innerText = "Global Error: " + e.message;
+                errorDisplay.classList.remove('hidden');
+            }
+            const loadingText = document.getElementById('loading-text');
+            if (loadingText) loadingText.innerText = "Error";
+        });
+
+        // Failsafe to remove loader if initialization hangs
+        setTimeout(() => {
+            const loader = document.getElementById('loading');
+            if (loader && !loader.classList.contains('fade-out')) {
+                console.warn("SpendWise: Initialization failsafe triggered.");
+                loader.classList.add('fade-out');
+                setTimeout(() => { loader.style.display = 'none'; }, 500);
+            }
+        }, 10000);
+    </script>
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>

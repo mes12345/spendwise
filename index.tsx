@@ -2,13 +2,15 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 
+console.info("SpendWise: index.tsx module loaded.");
+
 const init = () => {
-  console.info("SpendWise: React mounting...");
+  console.info("SpendWise: Initializing React...");
   const rootElement = document.getElementById('root');
   const loader = document.getElementById('loading');
 
   if (!rootElement) {
-    console.error("SpendWise: Root element missing.");
+    console.error("SpendWise: Root element not found.");
     return;
   }
 
@@ -20,9 +22,12 @@ const init = () => {
       </React.StrictMode>
     );
 
+    console.info("SpendWise: React render triggered.");
+
     // Fade out loader
     if (loader) {
       setTimeout(() => {
+        console.info("SpendWise: Hiding loader...");
         loader.classList.add('fade-out');
         setTimeout(() => {
           loader.style.display = 'none';
@@ -30,10 +35,10 @@ const init = () => {
       }, 500);
     }
   } catch (error) {
-    console.error("SpendWise: Render failed.", error);
+    console.error("SpendWise: Initialization failed.", error);
     const errorDisplay = document.getElementById('error-display');
     if (errorDisplay) {
-      errorDisplay.innerText = `Render Failed: ${error instanceof Error ? error.message : String(error)}`;
+      errorDisplay.innerText = `Initialization Error: ${error instanceof Error ? error.message : String(error)}`;
       errorDisplay.classList.remove('hidden');
     }
     const loadingText = document.getElementById('loading-text');
@@ -41,17 +46,5 @@ const init = () => {
   }
 };
 
-// Use a small delay to ensure the DOM is ready after module injection
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  init();
-} else {
-  document.addEventListener('DOMContentLoaded', init);
-}
-
-// Failsafe
-setTimeout(() => {
-  const loader = document.getElementById('loading');
-  if (loader && !loader.classList.contains('fade-out')) {
-    loader.classList.add('fade-out');
-  }
-}, 6000);
+// Modules are deferred by default, so we can just call init
+init();
