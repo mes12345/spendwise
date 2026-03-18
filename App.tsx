@@ -16,31 +16,16 @@ type Tab = 'Dashboard' | 'Add' | 'Transactions';
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('Dashboard');
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    try {
-      const saved = localStorage.getItem('spendwise_transactions');
-      return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-    } catch (e) {
-      console.error("SpendWise: Failed to parse transactions from localStorage", e);
-      return INITIAL_TRANSACTIONS;
-    }
+    const saved = localStorage.getItem('spendwise_transactions');
+    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
   });
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => {
-    try {
-      const saved = localStorage.getItem('spendwise_subscriptions');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.error("SpendWise: Failed to parse subscriptions from localStorage", e);
-      return [];
-    }
+    const saved = localStorage.getItem('spendwise_subscriptions');
+    return saved ? JSON.parse(saved) : [];
   });
   const [budget, setBudget] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('spendwise_budget');
-      return saved ? parseFloat(saved) : 2000;
-    } catch (e) {
-      console.error("SpendWise: Failed to parse budget from localStorage", e);
-      return 2000;
-    }
+    const saved = localStorage.getItem('spendwise_budget');
+    return saved ? parseFloat(saved) : 2000;
   });
   const [timeframe, setTimeframe] = useState<Timeframe>('Month');
   const [showSettings, setShowSettings] = useState(false);
@@ -245,18 +230,12 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDoneClick = React.useCallback(() => {
-    const form = document.getElementById('add-transaction-form') as HTMLFormElement;
-    if (form) {
-      form.requestSubmit();
-    }
-  }, []);
-
   const rightHeaderElement = useMemo(() => {
     if (activeTab === 'Add') {
       return (
         <button 
-          onClick={handleDoneClick}
+          form="add-transaction-form"
+          type="submit"
           className="flex items-center gap-1.5 px-4 py-2 bg-blue-500 text-white rounded-full text-sm font-bold shadow-md active:scale-95 transition-all"
         >
           <Check size={16} />
@@ -273,7 +252,7 @@ const App: React.FC = () => {
         <Settings size={20} />
       </button>
     );
-  }, [activeTab, handleDoneClick]);
+  }, [activeTab]);
 
   const tabItems = [
     { id: 'Dashboard', icon: <LayoutGrid size={24} />, label: 'Overview' },
@@ -288,7 +267,7 @@ const App: React.FC = () => {
         rightElement={rightHeaderElement}
       />
       
-      <main className="flex-1 overflow-y-auto hide-scrollbar bg-white relative z-0">
+      <main className="flex-1 overflow-y-auto hide-scrollbar">
         {renderContent()}
       </main>
 

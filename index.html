@@ -15,6 +15,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <style>
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -60,7 +62,22 @@
             font-family: monospace;
         }
     </style>
-    <link rel="stylesheet" href="/index.css">
+
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.0.0",
+        "react/": "https://esm.sh/react@19.0.0/",
+        "react-dom": "https://esm.sh/react-dom@19.0.0",
+        "react-dom/": "https://esm.sh/react-dom@19.0.0/",
+        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+        "recharts": "https://esm.sh/recharts@2.15.0?external=react,react-dom",
+        "lucide-react": "https://esm.sh/lucide-react@0.473.0?external=react,react-dom",
+        "date-fns": "https://esm.sh/date-fns@4.1.0"
+      }
+    }
+    </script>
+<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="loading" class="loading-screen">
@@ -72,15 +89,83 @@
     <div id="root"></div>
     
     <script>
-        // Failsafe to remove loader if script fails to load
-        setTimeout(() => {
-            const loader = document.getElementById('loading');
-            if (loader && !loader.classList.contains('fade-out')) {
-                console.warn("SpendWise: App failed to initialize within 5 seconds. Forcing loader removal.");
-                loader.classList.add('fade-out');
+        (async function boot() {
+            const loadingText = document.getElementById('loading-text');
+            const errorDisplay = document.getElementById('error-display');
+            const cache = new Map();
+
+            function showError(msg) {
+                if (loadingText) loadingText.innerText = "Load Failed";
+                if (errorDisplay) {
+                    errorDisplay.style.display = 'block';
+                    errorDisplay.innerText += msg + '\n';
+                }
             }
-        }, 5000);
+
+            async function transformAndFetch(url) {
+                const normalizedUrl = new URL(url, window.location.href).href;
+                if (cache.get(normalizedUrl)) return cache.get(normalizedUrl);
+
+                try {
+                    let response = await fetch(normalizedUrl);
+                    
+                    // Fallback mechanism for omitted extensions
+                    if (!response.ok && !/\.[jt]sx?$/.test(url)) {
+                        const extensions = ['.tsx', '.ts', '.js'];
+                        for (const ext of extensions) {
+                            const tryUrl = normalizedUrl + ext;
+                            response = await fetch(tryUrl);
+                            if (response.ok) {
+                                // Found it! Update current URL context for relative imports
+                                return transformAndFetch(tryUrl);
+                            }
+                        }
+                    }
+
+                    if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
+                    
+                    let code = await response.text();
+                    const importRegex = /(import|export)\s+[\s\S]*?from\s+['"](\.\.?\/[^'"]+)['"]/g;
+                    const matches = [...code.matchAll(importRegex)];
+
+                    for (const match of matches) {
+                        const originalPath = match[2];
+                        const absoluteUrl = new URL(originalPath, normalizedUrl).href;
+                        const blobUrl = await transformAndFetch(absoluteUrl);
+                        const updatedStatement = match[0].replace(originalPath, blobUrl);
+                        code = code.replace(match[0], updatedStatement);
+                    }
+
+                    const transformed = Babel.transform(code, {
+                        presets: [
+                            ['react', { runtime: 'automatic' }],
+                            ['typescript', { isTSX: true, allExtensions: true }]
+                        ],
+                        filename: normalizedUrl
+                    }).code;
+
+                    const blob = new Blob([transformed], { type: 'application/javascript' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    cache.set(normalizedUrl, blobUrl);
+                    return blobUrl;
+                } catch (err) {
+                    console.error(`Loader Error at ${url}:`, err);
+                    showError(err.message);
+                    throw err;
+                }
+            }
+
+            try {
+                const entryBlobUrl = await transformAndFetch('./index.tsx');
+                const script = document.createElement('script');
+                script.type = 'module';
+                script.src = entryBlobUrl;
+                document.head.appendChild(script);
+            } catch (err) {
+                console.error("SpendWise: Bootloader critical failure.", err);
+            }
+        })();
     </script>
-    <script type="module" src="/index.tsx"></script>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>
