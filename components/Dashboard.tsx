@@ -102,11 +102,11 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
       const dailyTransactions = filteredTransactions.filter(t => isSameDay(new Date(t.date), day));
       
       const dailyUtilities = dailyTransactions
-        .filter(t => t.category === Category.Utilities)
+        .filter(t => t.category === Category.Utilities || !!t.subscriptionId)
         .reduce((acc, t) => acc + t.amount, 0);
       
       const dailyOther = dailyTransactions
-        .filter(t => t.category !== Category.Utilities)
+        .filter(t => t.category !== Category.Utilities && !t.subscriptionId)
         .reduce((acc, t) => acc + t.amount, 0);
       
       cumulativeUtilities += dailyUtilities;
@@ -114,6 +114,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
       
       const dataPoint: any = {
         date: format(day, totalDays > 31 ? 'MMM d' : 'd'),
+        fullDate: format(day, 'MMMM d'),
         budget: idealDailyStep * i,
       };
 
@@ -148,6 +149,38 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
     const date = new Date(e.target.value);
     setSelectedMonth(date);
     onTimeframeChange('Month');
+  };
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-50 min-w-[180px]">
+          <p className="text-[10px] font-bold text-gray-400 mb-3 uppercase tracking-widest">{data.fullDate}</p>
+          <div className="flex flex-col gap-2">
+            {payload.map((entry: any, index: number) => (
+              <div key={index} className="flex justify-between items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div 
+                    className={`w-1.5 h-1.5 rounded-full ${entry.dataKey === 'budget' ? 'border border-dashed border-gray-400 bg-transparent' : ''}`} 
+                    style={entry.dataKey !== 'budget' ? { backgroundColor: entry.color || entry.stroke } : {}} 
+                  />
+                  <span className="text-[11px] font-bold text-gray-500 uppercase">{entry.name}</span>
+                </div>
+                <span className="text-[11px] font-black text-gray-900">${entry.value.toFixed(2)}</span>
+              </div>
+            ))}
+            {data.actual !== undefined && (
+              <div className="mt-2 pt-2 border-t border-gray-100 flex justify-between items-center gap-4">
+                <span className="text-[11px] font-black text-blue-600 uppercase">Total Spent</span>
+                <span className="text-[11px] font-black text-blue-600">${data.actual.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -226,15 +259,15 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
           <h3 className="text-lg font-bold">Spending Trend</h3>
           <div className="flex items-center gap-3">
              <div className="flex items-center gap-1">
-               <div className="w-2 h-2 rounded-full bg-blue-500" />
+               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
                <span className="text-[10px] font-bold text-gray-400 uppercase">Other</span>
              </div>
              <div className="flex items-center gap-1">
-               <div className="w-2 h-2 rounded-full bg-amber-400" />
+               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CATEGORY_CONFIG[Category.Utilities].color }} />
                <span className="text-[10px] font-bold text-gray-400 uppercase">Utilities</span>
              </div>
              <div className="flex items-center gap-1">
-               <div className="w-2 h-0.5 bg-gray-300" />
+               <div className="w-2 h-0.5 border-t border-dashed border-gray-300" style={{ width: '12px' }} />
                <span className="text-[10px] font-bold text-gray-400 uppercase">On-Track Budget</span>
              </div>
           </div>
@@ -248,8 +281,8 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                 </linearGradient>
                 <linearGradient id="colorUtilities" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#fbbf24" stopOpacity={0}/>
+                  <stop offset="5%" stopColor={CATEGORY_CONFIG[Category.Utilities].color} stopOpacity={0.15}/>
+                  <stop offset="95%" stopColor={CATEGORY_CONFIG[Category.Utilities].color} stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} stroke="#F3F4F6" />
@@ -261,13 +294,11 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
                 minTickGap={20}
               />
               <YAxis hide domain={[0, 'auto']} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                formatter={(value: number, name: string) => [`$${value.toFixed(2)}`, name.toUpperCase()]}
-              />
+              <Tooltip content={<CustomTooltip />} />
               <Area 
                 type="monotone" 
                 dataKey="other" 
+                name="Other"
                 stackId="1"
                 stroke="#3b82f6" 
                 strokeWidth={2} 
@@ -279,8 +310,9 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
               <Area 
                 type="monotone" 
                 dataKey="utilities" 
+                name="Utilities"
                 stackId="1"
-                stroke="#fbbf24" 
+                stroke={CATEGORY_CONFIG[Category.Utilities].color} 
                 strokeWidth={2} 
                 fillOpacity={1} 
                 fill="url(#colorUtilities)" 
@@ -290,6 +322,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
               <Line 
                 type="monotone" 
                 dataKey="budget" 
+                name="Budget"
                 stroke="#D1D5DB" 
                 strokeWidth={1.5} 
                 strokeDasharray="5 5" 

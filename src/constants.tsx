@@ -29,7 +29,7 @@ export const CATEGORY_CONFIG: Record<Category, { icon: React.ReactNode; color: s
   [Category.BabyItems]: { icon: <Baby size={18} />, color: '#1AC2E6' },
   [Category.Education]: { icon: <GraduationCap size={18} />, color: '#007AFF' },
   [Category.Household]: { icon: <Home size={18} />, color: '#FF9500' },
-  [Category.Other]: { icon: <MoreHorizontal size={18} />, color: '#C7C7CC' },
+  [Category.Other]: { icon: <MoreHorizontal size={18} />, color: '#3b82f6' },
 };
 
 export const INITIAL_TRANSACTIONS: Transaction[] = [

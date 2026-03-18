@@ -16,20 +16,39 @@ type Tab = 'Dashboard' | 'Add' | 'Transactions';
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('Dashboard');
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('spendwise_transactions');
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+    try {
+      const saved = localStorage.getItem('spendwise_transactions');
+      return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+    } catch (e) {
+      console.error('Failed to parse transactions', e);
+      return INITIAL_TRANSACTIONS;
+    }
   });
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => {
-    const saved = localStorage.getItem('spendwise_subscriptions');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('spendwise_subscriptions');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error('Failed to parse subscriptions', e);
+      return [];
+    }
   });
   const [budget, setBudget] = useState<number>(() => {
-    const saved = localStorage.getItem('spendwise_budget');
-    return saved ? parseFloat(saved) : 2000;
+    try {
+      const saved = localStorage.getItem('spendwise_budget');
+      return saved ? parseFloat(saved) : 2000;
+    } catch (e) {
+      console.error('Failed to parse budget', e);
+      return 2000;
+    }
   });
   const [timeframe, setTimeframe] = useState<Timeframe>('Month');
   const [showSettings, setShowSettings] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
+  useEffect(() => {
+    console.info("SpendWise: App component mounted.");
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('spendwise_transactions', JSON.stringify(transactions));
@@ -230,12 +249,18 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDoneClick = React.useCallback(() => {
+    const form = document.getElementById('add-transaction-form') as HTMLFormElement;
+    if (form) {
+      form.requestSubmit();
+    }
+  }, []);
+
   const rightHeaderElement = useMemo(() => {
     if (activeTab === 'Add') {
       return (
         <button 
-          form="add-transaction-form"
-          type="submit"
+          onClick={handleDoneClick}
           className="flex items-center gap-1.5 px-4 py-2 bg-blue-500 text-white rounded-full text-sm font-bold shadow-md active:scale-95 transition-all"
         >
           <Check size={16} />
@@ -252,7 +277,7 @@ const App: React.FC = () => {
         <Settings size={20} />
       </button>
     );
-  }, [activeTab]);
+  }, [activeTab, handleDoneClick]);
 
   const tabItems = [
     { id: 'Dashboard', icon: <LayoutGrid size={24} />, label: 'Overview' },
@@ -267,7 +292,7 @@ const App: React.FC = () => {
         rightElement={rightHeaderElement}
       />
       
-      <main className="flex-1 overflow-y-auto hide-scrollbar">
+      <main className="flex-1 overflow-y-auto hide-scrollbar bg-white relative z-0">
         {renderContent()}
       </main>
 
