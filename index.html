@@ -49,51 +49,38 @@
             margin-bottom: 1.5rem;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-container {
+            max-width: 80%;
+            text-align: center;
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 1rem;
+            display: none;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
     </style>
-    <link rel="stylesheet" href="/src/index.css">
-    <script>
-        console.info("SpendWise: index.html head script starting.");
-        // Global error handler to catch script load or execution errors
-        window.addEventListener('error', function(e) {
-            console.error("SpendWise: Global error caught:", e.message, "at", e.filename, ":", e.lineno);
-            const errorDisplay = document.getElementById('error-display');
-            if (errorDisplay) {
-                errorDisplay.innerText = "Global Error: " + e.message + "\nFile: " + e.filename + ":" + e.lineno;
-                errorDisplay.classList.remove('hidden');
-            }
-            const loadingText = document.getElementById('loading-text');
-            if (loadingText) loadingText.innerText = "Error";
-        });
-
-        // Catch unhandled promise rejections
-        window.addEventListener('unhandledrejection', function(event) {
-            console.error("SpendWise: Unhandled rejection:", event.reason);
-            const errorDisplay = document.getElementById('error-display');
-            if (errorDisplay) {
-                errorDisplay.innerText = "Unhandled Rejection: " + (event.reason?.message || event.reason);
-                errorDisplay.classList.remove('hidden');
-            }
-        });
-
-        // Failsafe to remove loader if initialization hangs
-        setTimeout(() => {
-            const loader = document.getElementById('loading');
-            if (loader && !loader.classList.contains('fade-out')) {
-                console.warn("SpendWise: Initialization failsafe triggered.");
-                loader.classList.add('fade-out');
-                setTimeout(() => { loader.style.display = 'none'; }, 500);
-            }
-        }, 10000);
-    </script>
-    <script type="module" src="/src/index.tsx"></script>
+    <link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="loading" class="loading-screen">
         <div class="spinner"></div>
         <p id="loading-text" class="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">Initializing...</p>
-        <div id="error-display" class="mt-4 p-4 bg-red-50 text-red-600 rounded-xl text-xs font-mono hidden max-w-[80%] break-words"></div>
+        <div id="error-display" class="error-container"></div>
     </div>
 
     <div id="root"></div>
+    
+    <script>
+        // Failsafe to remove loader if script fails to load
+        setTimeout(() => {
+            const loader = document.getElementById('loading');
+            if (loader && !loader.classList.contains('fade-out')) {
+                console.warn("SpendWise: App failed to initialize within 5 seconds. Forcing loader removal.");
+                loader.classList.add('fade-out');
+            }
+        }, 5000);
+    </script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
