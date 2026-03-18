@@ -16,16 +16,31 @@ type Tab = 'Dashboard' | 'Add' | 'Transactions';
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('Dashboard');
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('spendwise_transactions');
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+    try {
+      const saved = localStorage.getItem('spendwise_transactions');
+      return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+    } catch (e) {
+      console.error("SpendWise: Failed to parse transactions from localStorage", e);
+      return INITIAL_TRANSACTIONS;
+    }
   });
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => {
-    const saved = localStorage.getItem('spendwise_subscriptions');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('spendwise_subscriptions');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("SpendWise: Failed to parse subscriptions from localStorage", e);
+      return [];
+    }
   });
   const [budget, setBudget] = useState<number>(() => {
-    const saved = localStorage.getItem('spendwise_budget');
-    return saved ? parseFloat(saved) : 2000;
+    try {
+      const saved = localStorage.getItem('spendwise_budget');
+      return saved ? parseFloat(saved) : 2000;
+    } catch (e) {
+      console.error("SpendWise: Failed to parse budget from localStorage", e);
+      return 2000;
+    }
   });
   const [timeframe, setTimeframe] = useState<Timeframe>('Month');
   const [showSettings, setShowSettings] = useState(false);

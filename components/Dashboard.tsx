@@ -226,11 +226,11 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
           <h3 className="text-lg font-bold">Spending Trend</h3>
           <div className="flex items-center gap-3">
              <div className="flex items-center gap-1">
-               <div className="w-2 h-2 rounded-full bg-blue-500" />
+               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CATEGORY_CONFIG[Category.Other].color }} />
                <span className="text-[10px] font-bold text-gray-400 uppercase">Other</span>
              </div>
              <div className="flex items-center gap-1">
-               <div className="w-2 h-2 rounded-full bg-amber-400" />
+               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CATEGORY_CONFIG[Category.Utilities].color }} />
                <span className="text-[10px] font-bold text-gray-400 uppercase">Utilities</span>
              </div>
              <div className="flex items-center gap-1">
@@ -244,12 +244,12 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
             <ComposedChart data={timeSeriesData}>
               <defs>
                 <linearGradient id="colorOther" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  <stop offset="5%" stopColor={CATEGORY_CONFIG[Category.Other].color} stopOpacity={0.15}/>
+                  <stop offset="95%" stopColor={CATEGORY_CONFIG[Category.Other].color} stopOpacity={0}/>
                 </linearGradient>
                 <linearGradient id="colorUtilities" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#fbbf24" stopOpacity={0}/>
+                  <stop offset="5%" stopColor={CATEGORY_CONFIG[Category.Utilities].color} stopOpacity={0.15}/>
+                  <stop offset="95%" stopColor={CATEGORY_CONFIG[Category.Utilities].color} stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} stroke="#F3F4F6" />
@@ -267,23 +267,23 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
               />
               <Area 
                 type="monotone" 
-                dataKey="other" 
+                dataKey="utilities" 
                 stackId="1"
-                stroke="#3b82f6" 
+                stroke={CATEGORY_CONFIG[Category.Utilities].color} 
                 strokeWidth={2} 
                 fillOpacity={1} 
-                fill="url(#colorOther)" 
+                fill="url(#colorUtilities)" 
                 animationDuration={2000}
                 isAnimationActive={true}
               />
               <Area 
                 type="monotone" 
-                dataKey="utilities" 
+                dataKey="other" 
                 stackId="1"
-                stroke="#fbbf24" 
+                stroke={CATEGORY_CONFIG[Category.Other].color} 
                 strokeWidth={2} 
                 fillOpacity={1} 
-                fill="url(#colorUtilities)" 
+                fill="url(#colorOther)" 
                 animationDuration={2000}
                 isAnimationActive={true}
               />
