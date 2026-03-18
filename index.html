@@ -60,7 +60,7 @@
             font-family: monospace;
         }
     </style>
-    <link rel="stylesheet" href="/index.css">
+    <link rel="stylesheet" href="./index.css">
 </head>
 <body>
     <div id="loading" class="loading-screen">
@@ -85,11 +85,26 @@
         setTimeout(() => {
             const loader = document.getElementById('loading');
             if (loader && !loader.classList.contains('fade-out')) {
-                console.warn("SpendWise: Failsafe triggered. Removing loader.");
+                console.error("SpendWise: App failed to initialize within 5 seconds. Forcing loader removal.");
                 loader.classList.add('fade-out');
+                const errorDisplay = document.getElementById('error-display');
+                if (errorDisplay) {
+                    errorDisplay.style.display = 'block';
+                    errorDisplay.innerText = "The app is taking longer than expected to load. Please check your internet connection or try refreshing.";
+                }
             }
-        }, 8000);
+        }, 5000);
     </script>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="./index.tsx" onerror="handleScriptError()"></script>
+    <script>
+        function handleScriptError() {
+            console.error("SpendWise: Main script failed to load.");
+            const errorDisplay = document.getElementById('error-display');
+            if (errorDisplay) {
+                errorDisplay.style.display = 'block';
+                errorDisplay.innerText = "Failed to load the application script. This might be due to a network error or an unsupported browser. Please try refreshing the page.";
+            }
+        }
+    </script>
 </body>
 </html>
