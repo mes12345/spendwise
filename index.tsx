@@ -2,21 +2,13 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 
-// Global error listener for early runtime errors
-window.addEventListener('error', (event) => {
-  console.error("SpendWise: Runtime error caught in index.tsx", event.error || event.message);
-  const loader = document.getElementById('loading');
-  if (loader) loader.classList.add('fade-out');
-});
-
 const init = () => {
-  console.info("SpendWise: Initializing React mount...");
+  console.info("SpendWise: React mounting...");
   const rootElement = document.getElementById('root');
   const loader = document.getElementById('loading');
 
   if (!rootElement) {
-    console.error("SpendWise: Root element (#root) missing in DOM.");
-    if (loader) loader.classList.add('fade-out');
+    console.error("SpendWise: Root element missing.");
     return;
   }
 
@@ -27,21 +19,25 @@ const init = () => {
         <App />
       </React.StrictMode>
     );
-    console.info("SpendWise: Render triggered.");
 
     // Fade out loader
     if (loader) {
       setTimeout(() => {
-        console.info("SpendWise: Fading out loader.");
         loader.classList.add('fade-out');
         setTimeout(() => {
           loader.style.display = 'none';
         }, 500);
-      }, 300);
+      }, 500);
     }
   } catch (error) {
-    console.error("SpendWise: React render failed.", error);
-    if (loader) loader.classList.add('fade-out');
+    console.error("SpendWise: Render failed.", error);
+    const errorDisplay = document.getElementById('error-display');
+    if (errorDisplay) {
+      errorDisplay.innerText = `Render Failed: ${error instanceof Error ? error.message : String(error)}`;
+      errorDisplay.classList.remove('hidden');
+    }
+    const loadingText = document.getElementById('loading-text');
+    if (loadingText) loadingText.innerText = "Error";
   }
 };
 
@@ -51,3 +47,11 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
 } else {
   document.addEventListener('DOMContentLoaded', init);
 }
+
+// Failsafe
+setTimeout(() => {
+  const loader = document.getElementById('loading');
+  if (loader && !loader.classList.contains('fade-out')) {
+    loader.classList.add('fade-out');
+  }
+}, 6000);

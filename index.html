@@ -15,6 +15,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <style>
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -49,16 +51,6 @@
             margin-bottom: 1.5rem;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .error-container {
-            max-width: 80%;
-            text-align: center;
-            color: #ef4444;
-            font-size: 12px;
-            margin-top: 1rem;
-            display: none;
-            white-space: pre-wrap;
-            font-family: monospace;
-        }
     </style>
     <link rel="stylesheet" href="/index.css">
 </head>
@@ -66,21 +58,11 @@
     <div id="loading" class="loading-screen">
         <div class="spinner"></div>
         <p id="loading-text" class="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">Initializing...</p>
-        <div id="error-display" class="error-container"></div>
+        <div id="error-display" class="mt-4 p-4 bg-red-50 text-red-600 rounded-xl text-xs font-mono hidden max-w-[80%] break-words"></div>
     </div>
 
     <div id="root"></div>
     
-    <script>
-        // Failsafe to remove loader if script fails to load
-        setTimeout(() => {
-            const loader = document.getElementById('loading');
-            if (loader && !loader.classList.contains('fade-out')) {
-                console.warn("SpendWise: App failed to initialize within 5 seconds. Forcing loader removal.");
-                loader.classList.add('fade-out');
-            }
-        }, 5000);
-    </script>
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>

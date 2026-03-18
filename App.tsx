@@ -20,7 +20,7 @@ const App: React.FC = () => {
       const saved = localStorage.getItem('spendwise_transactions');
       return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
     } catch (e) {
-      console.error("SpendWise: Failed to parse transactions from localStorage", e);
+      console.error('Failed to parse transactions', e);
       return INITIAL_TRANSACTIONS;
     }
   });
@@ -29,7 +29,7 @@ const App: React.FC = () => {
       const saved = localStorage.getItem('spendwise_subscriptions');
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
-      console.error("SpendWise: Failed to parse subscriptions from localStorage", e);
+      console.error('Failed to parse subscriptions', e);
       return [];
     }
   });
@@ -38,7 +38,7 @@ const App: React.FC = () => {
       const saved = localStorage.getItem('spendwise_budget');
       return saved ? parseFloat(saved) : 2000;
     } catch (e) {
-      console.error("SpendWise: Failed to parse budget from localStorage", e);
+      console.error('Failed to parse budget', e);
       return 2000;
     }
   });
