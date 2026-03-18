@@ -9,7 +9,8 @@ import { CATEGORY_CONFIG } from '../constants.tsx';
 import { 
   format, isWithinInterval, startOfMonth, endOfMonth, 
   subMonths, startOfYear, eachDayOfInterval, isSameDay,
-  parseISO, eachMonthOfInterval, min, max, isSameMonth
+  parseISO, eachMonthOfInterval, min, max, isSameMonth,
+  isAfter, startOfDay
 } from 'date-fns';
 import { ChevronDown, Calendar } from 'lucide-react';
 
@@ -87,24 +88,42 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
     if (timeframe === '12 Months') budgetMultiplier = 12;
     if (timeframe === 'YTD') budgetMultiplier = (new Date().getMonth() + 1);
 
-    const totalTargetBudget = budget * budgetMultiplier;
-    const idealDailyStep = totalTargetBudget / (totalDays - 1 || 1);
+    const totalPeriodBudget = budget * budgetMultiplier;
+    const idealDailyStep = totalPeriodBudget / (totalDays - 1 || 1);
 
-    let cumulativeActual = 0;
+    let cumulativeUtilities = 0;
+    let cumulativeOther = 0;
     const result = [];
+    const today = startOfDay(new Date());
     
     for (let i = 0; i < days.length; i++) {
       const day = days[i];
-      const dailySum = filteredTransactions
-        .filter(t => isSameDay(new Date(t.date), day))
+      const isFuture = isAfter(startOfDay(day), today);
+      const dailyTransactions = filteredTransactions.filter(t => isSameDay(new Date(t.date), day));
+      
+      const dailyUtilities = dailyTransactions
+        .filter(t => t.category === Category.Utilities)
         .reduce((acc, t) => acc + t.amount, 0);
       
-      cumulativeActual += dailySum;
-      result.push({
+      const dailyOther = dailyTransactions
+        .filter(t => t.category !== Category.Utilities)
+        .reduce((acc, t) => acc + t.amount, 0);
+      
+      cumulativeUtilities += dailyUtilities;
+      cumulativeOther += dailyOther;
+      
+      const dataPoint: any = {
         date: format(day, totalDays > 31 ? 'MMM d' : 'd'),
-        actual: cumulativeActual,
-        ideal: idealDailyStep * i,
-      });
+        budget: idealDailyStep * i,
+      };
+
+      if (!isFuture) {
+        dataPoint.utilities = cumulativeUtilities;
+        dataPoint.other = cumulativeOther;
+        dataPoint.actual = cumulativeUtilities + cumulativeOther;
+      }
+
+      result.push(dataPoint);
     }
     return result;
   }, [dateRange, filteredTransactions, budget, timeframe]);
@@ -184,7 +203,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
         <div className="flex justify-between items-baseline mb-4">
           <h2 className="text-4xl font-bold text-black">${currentMonthSpent.toFixed(2)}</h2>
           <span className={`text-xs font-semibold px-2 py-1 rounded-full ${isOverBudget ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-            Goal: ${budget}
+            Budget: ${budget}
           </span>
         </div>
         
@@ -197,7 +216,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
         <p className="text-sm text-gray-500">
           {isOverBudget 
             ? `You're $${(currentMonthSpent - budget).toFixed(2)} over limit.` 
-            : `You've used ${onTrackPercent}% of your target.`}
+            : `You've used ${onTrackPercent}% of your budget.`}
         </p>
       </div>
 
@@ -208,11 +227,15 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
           <div className="flex items-center gap-3">
              <div className="flex items-center gap-1">
                <div className="w-2 h-2 rounded-full bg-blue-500" />
-               <span className="text-[10px] font-bold text-gray-400">ACTUAL</span>
+               <span className="text-[10px] font-bold text-gray-400 uppercase">Other</span>
+             </div>
+             <div className="flex items-center gap-1">
+               <div className="w-2 h-2 rounded-full bg-amber-400" />
+               <span className="text-[10px] font-bold text-gray-400 uppercase">Utilities</span>
              </div>
              <div className="flex items-center gap-1">
                <div className="w-2 h-0.5 bg-gray-300" />
-               <span className="text-[10px] font-bold text-gray-400">TARGET</span>
+               <span className="text-[10px] font-bold text-gray-400 uppercase">On-Track Budget</span>
              </div>
           </div>
         </div>
@@ -220,9 +243,13 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={timeSeriesData}>
               <defs>
-                <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="colorOther" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="colorUtilities" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.15}/>
+                  <stop offset="95%" stopColor="#fbbf24" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} stroke="#F3F4F6" />
@@ -236,21 +263,33 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
               <YAxis hide domain={[0, 'auto']} />
               <Tooltip 
                 contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                formatter={(value: number) => [`$${value.toFixed(2)}`]}
+                formatter={(value: number, name: string) => [`$${value.toFixed(2)}`, name.toUpperCase()]}
               />
               <Area 
                 type="monotone" 
-                dataKey="actual" 
+                dataKey="other" 
+                stackId="1"
                 stroke="#3b82f6" 
-                strokeWidth={3} 
+                strokeWidth={2} 
                 fillOpacity={1} 
-                fill="url(#colorActual)" 
+                fill="url(#colorOther)" 
+                animationDuration={2000}
+                isAnimationActive={true}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="utilities" 
+                stackId="1"
+                stroke="#fbbf24" 
+                strokeWidth={2} 
+                fillOpacity={1} 
+                fill="url(#colorUtilities)" 
                 animationDuration={2000}
                 isAnimationActive={true}
               />
               <Line 
                 type="monotone" 
-                dataKey="ideal" 
+                dataKey="budget" 
                 stroke="#D1D5DB" 
                 strokeWidth={1.5} 
                 strokeDasharray="5 5" 

@@ -10,6 +10,7 @@ export enum Category {
   Utilities = 'Utilities',
   BabyItems = 'Baby Items',
   Education = 'Education',
+  Household = 'Household',
   Other = 'Other'
 }
 

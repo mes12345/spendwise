@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Target, Check, Download, Upload, ShieldCheck, Database, X, ChevronRight } from 'lucide-react';
+import { Wallet, Check, Download, Upload, ShieldCheck, Database, X, ChevronRight } from 'lucide-react';
 
 interface SettingsModalProps {
   currentBudget: number;
@@ -59,14 +59,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <div className="flex-1 overflow-y-auto hide-scrollbar p-6 space-y-10">
           
-          {/* Section 1: Financial Goal */}
+          {/* Section 1: Financial Budget */}
           <section>
             <div className="flex items-center gap-2 mb-4 px-1">
-              <Target size={18} className="text-purple-600" />
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Spending Limit</h3>
+              <Wallet size={18} className="text-purple-600" />
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Monthly Budget</h3>
             </div>
             <div className="bg-white rounded-[28px] p-6 shadow-sm border border-gray-100">
-              <p className="text-gray-500 mb-6 text-sm leading-snug">Adjust your monthly spending target for the dashboard.</p>
+              <p className="text-gray-500 mb-6 text-sm leading-snug">Adjust your monthly spending budget for the dashboard.</p>
               <div className="relative mb-6">
                 <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-300">$</span>
                 <input 
@@ -82,7 +82,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 className="w-full bg-purple-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-purple-100 flex items-center justify-center gap-2 active:scale-95 transition-all"
               >
                 <Check size={18} />
-                Update Target
+                Update Budget
               </button>
             </div>
           </section>

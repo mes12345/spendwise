@@ -11,7 +11,8 @@ import {
   Zap, 
   MoreHorizontal,
   Baby,
-  GraduationCap
+  GraduationCap,
+  Home
 } from 'lucide-react';
 import { Category, Transaction } from './types';
 
@@ -27,6 +28,7 @@ export const CATEGORY_CONFIG: Record<Category, { icon: React.ReactNode; color: s
   [Category.Utilities]: { icon: <Zap size={18} />, color: '#FFCC00' },
   [Category.BabyItems]: { icon: <Baby size={18} />, color: '#1AC2E6' },
   [Category.Education]: { icon: <GraduationCap size={18} />, color: '#007AFF' },
+  [Category.Household]: { icon: <Home size={18} />, color: '#FF9500' },
   [Category.Other]: { icon: <MoreHorizontal size={18} />, color: '#C7C7CC' },
 };
 
