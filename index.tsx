@@ -41,11 +41,3 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
 } else {
   document.addEventListener('DOMContentLoaded', init);
 }
-
-// Failsafe
-setTimeout(() => {
-  const loader = document.getElementById('loading');
-  if (loader && !loader.classList.contains('fade-out')) {
-    loader.classList.add('fade-out');
-  }
-}, 6000);

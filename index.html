@@ -49,6 +49,16 @@
             margin-bottom: 1.5rem;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-container {
+            max-width: 80%;
+            text-align: center;
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 1rem;
+            display: none;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
     </style>
     <link rel="stylesheet" href="/index.css">
 </head>
@@ -56,10 +66,30 @@
     <div id="loading" class="loading-screen">
         <div class="spinner"></div>
         <p id="loading-text" class="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">Initializing...</p>
+        <div id="error-display" class="error-container"></div>
     </div>
 
     <div id="root"></div>
     
+    <script>
+        // Failsafe to remove loader if script fails to load
+        window.addEventListener('error', (e) => {
+            console.error("SpendWise: Script error caught in index.html", e);
+            const errorDisplay = document.getElementById('error-display');
+            if (errorDisplay) {
+                errorDisplay.style.display = 'block';
+                errorDisplay.innerText = "Load Error: " + (e.message || "Unknown error");
+            }
+        });
+
+        setTimeout(() => {
+            const loader = document.getElementById('loading');
+            if (loader && !loader.classList.contains('fade-out')) {
+                console.warn("SpendWise: Failsafe triggered. Removing loader.");
+                loader.classList.add('fade-out');
+            }
+        }, 8000);
+    </script>
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>
