@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { LayoutGrid, PlusCircle, Settings, Wallet, Check, X } from 'lucide-react';
+
+console.info("SpendWise: App.tsx module loading...");
 import TopHeader from './components/TopHeader.tsx';
 import Dashboard from './components/Dashboard.tsx';
 import TransactionInput from './components/TransactionInput.tsx';

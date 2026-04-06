@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
+import './index.css';
 
 console.info("SpendWise: index.tsx module loaded.");
 
@@ -39,7 +40,7 @@ const init = () => {
     const errorDisplay = document.getElementById('error-display');
     if (errorDisplay) {
       errorDisplay.innerText = `Initialization Error: ${error instanceof Error ? error.message : String(error)}`;
-      errorDisplay.classList.remove('hidden');
+      errorDisplay.classList.add('show');
     }
     const loadingText = document.getElementById('loading-text');
     if (loadingText) loadingText.innerText = "Error";

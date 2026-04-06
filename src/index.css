@@ -1,3 +1,4 @@
+@import "tailwindcss";
 
 .ios-blur {
   backdrop-filter: blur(20px);
