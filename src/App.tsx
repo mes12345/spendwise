@@ -137,15 +137,11 @@ const App: React.FC = () => {
   };
 
   const deleteTransaction = (id: string) => {
-    if (window.confirm("Delete this transaction?")) {
-      setTransactions(prev => prev.filter(t => t.id !== id));
-    }
+    setTransactions(prev => prev.filter(t => t.id !== id));
   };
 
   const deleteSubscription = (id: string) => {
-    if (window.confirm("Remove this recurring payment?")) {
-      setSubscriptions(prev => prev.filter(s => s.id !== id));
-    }
+    setSubscriptions(prev => prev.filter(s => s.id !== id));
   };
 
   const acceptProposedSubscription = (sub: Subscription) => {

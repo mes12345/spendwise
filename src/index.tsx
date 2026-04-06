@@ -5,6 +5,9 @@ import './index.css';
 
 console.info("SpendWise: index.tsx module loaded.");
 
+// Mark as initialized for the failsafe in index.html
+(window as any).SpendWiseInitialized = true;
+
 // Global error listener to catch issues during script execution
 window.onerror = (message, source, lineno, colno, error) => {
   console.error("SpendWise: Global error caught:", { message, source, lineno, colno, error });

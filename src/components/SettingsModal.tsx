@@ -28,11 +28,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     reader.onload = (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
-        if (window.confirm("This will replace all your current transactions and budget with the data from this file. Are you sure?")) {
-          onImport(json);
-        }
+        onImport(json);
       } catch (err) {
-        alert("Failed to parse the backup file. Please ensure it's a valid SpendWise JSON export.");
+        console.error("Failed to parse the backup file.", err);
       }
     };
     reader.readAsText(file);

@@ -37,7 +37,6 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.description || !formData.amount || !formData.vendor) {
-      alert("Please fill in all required fields (Amount, Description, Vendor)");
       return;
     }
 
