@@ -1,6 +1,6 @@
 import React from 'react';
-import { Subscription } from '../types.ts';
-import { CATEGORY_CONFIG } from '../constants.tsx';
+import { Subscription } from '../types';
+import { CATEGORY_CONFIG } from '../constants';
 import { RefreshCw, Check, X, Trash2 } from 'lucide-react';
 
 interface ProposedSubscriptionsProps {

@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Calendar, Tag, User, AlignLeft, RefreshCw, Check, X } from 'lucide-react';
-import { Transaction, Category } from '../types.ts';
-import { CATEGORY_CONFIG } from '../constants.tsx';
+import { Transaction, Category } from '../types';
+import { CATEGORY_CONFIG } from '../constants';
 import { format, parse } from 'date-fns';
 
 interface TransactionInputProps {
