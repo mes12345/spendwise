@@ -3,14 +3,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { LayoutGrid, PlusCircle, Settings, Wallet, Check, X } from 'lucide-react';
 
 console.info("SpendWise: App.tsx module loading...");
-import TopHeader from './components/TopHeader.tsx';
-import Dashboard from './components/Dashboard.tsx';
-import TransactionInput from './components/TransactionInput.tsx';
-import TransactionList from './components/TransactionList.tsx';
-import SettingsModal from './components/SettingsModal.tsx';
-import ProposedSubscriptions from './components/ProposedSubscriptions.tsx';
-import { Transaction, Timeframe, Subscription } from './types.ts';
-import { INITIAL_TRANSACTIONS } from './constants.tsx';
+import TopHeader from './components/TopHeader';
+import Dashboard from './components/Dashboard';
+import TransactionInput from './components/TransactionInput';
+import TransactionList from './components/TransactionList';
+import SettingsModal from './components/SettingsModal';
+import ProposedSubscriptions from './components/ProposedSubscriptions';
+import { Transaction, Timeframe, Subscription } from './types';
+import { INITIAL_TRANSACTIONS } from './constants';
 import { isSameMonth, format } from 'date-fns';
 
 type Tab = 'Dashboard' | 'Add' | 'Transactions';
