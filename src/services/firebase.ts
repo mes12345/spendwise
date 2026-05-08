@@ -18,7 +18,7 @@ async function testConnection() {
     }
   }
 }
-testConnection();
+// testConnection();
 
 export enum OperationType {
   CREATE = 'create',
