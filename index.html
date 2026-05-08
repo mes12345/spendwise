@@ -6,7 +6,7 @@
     <title>SpendWise</title>
     
     <link rel="manifest" href="./manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="SpendWise">
     <meta name="theme-color" content="#F2F2F7">
@@ -52,11 +52,14 @@
             max-width: 80%;
             text-align: center;
             color: #ef4444;
-            font-size: 12px;
+            font-size: 11px;
             margin-top: 1rem;
             display: none;
             white-space: pre-wrap;
-            font-family: monospace;
+            font-family: sans-serif;
+            padding: 10px;
+            border-radius: 8px;
+            background: #Fee2e2;
         }
         .error-container.show { display: block; }
     </style>
@@ -71,36 +74,18 @@
     <div id="root"></div>
     
     <script>
-        console.log("SpendWise: index.html failsafe script running");
-        window.SpendWiseLoadingStarted = true;
-        let seconds = 0;
-        const interval = setInterval(() => {
-            seconds++;
-            console.log(`SpendWise: Waiting... (${seconds}s) - Started: ${!!window.SpendWiseLoadingStarted}, Initialized: ${!!window.SpendWiseInitialized}`);
-            if (window.SpendWiseInitialized) {
-                console.log("SpendWise: SUCCESS - Initialized detected!");
-                clearInterval(interval);
-            }
-            if (seconds >= 30) {
-                console.error("SpendWise: TIMEOUT - Initialization took too long.");
-                clearInterval(interval);
-            }
-        }, 1000);
-
-        // Check if the app initialized after 22 seconds
+        // Detection script
         setTimeout(() => {
             if (!window.SpendWiseInitialized) {
-                console.error("SpendWise: App failed to initialize within 22s.");
+                console.error("SpendWise: App failed to initialize.");
                 const errorDisplay = document.getElementById('error-display');
                 if (errorDisplay) {
-                    errorDisplay.innerHTML = "<strong>Initialization Timeout</strong><br>The application script failed to start. This could be due to a network error, a slow start, or a script crash.<br><br>Please try refreshing the page or checking your internet connection.";
+                    errorDisplay.innerHTML = "<strong>Slow Load</strong><br>Check your connection or console (F12) for errors.";
                     errorDisplay.classList.add('show');
                 }
-                const loadingText = document.getElementById('loading-text');
-                if (loadingText) loadingText.innerText = "Error";
             }
-        }, 22000);
+        }, 15000);
     </script>
-    <script type="module" src="./src/index.tsx" onload="window.SpendWiseInitialized=true; console.log('SpendWise: index.tsx LOADED via onload');" onerror="console.error('SpendWise: index.tsx FAILED to load'); window.SpendWiseLoadFailed=true;"></script>
+    <script type="module" src="/src/index.tsx"></script>
 </body>
 </html>
