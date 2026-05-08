@@ -78,8 +78,12 @@ setTimeout(() => {
 }, 8000);
 
 // Modules are deferred by default, but we can ensure DOM is ready
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  init();
-} else {
-  document.addEventListener('DOMContentLoaded', init);
+try {
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    init();
+  } else {
+    document.addEventListener('DOMContentLoaded', init);
+  }
+} catch (error) {
+  console.error("SpendWise: Critical load error", error);
 }

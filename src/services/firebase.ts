@@ -3,9 +3,18 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
+let app;
+try {
+  console.info("SpendWise: Initializing Firebase...");
+  app = initializeApp(firebaseConfig);
+} catch (error) {
+  console.error("SpendWise: Firebase initialization failed.", error);
+  // Optional: rethrow if critical, but we want to avoid total module failure if possible
+  // For now, we'll let it fail so we can see the error in the console.
+}
+
+export const db = app ? getFirestore(app, firebaseConfig.firestoreDatabaseId) : null as any;
+export const auth = app ? getAuth(app) : null as any;
 
 // CRITICAL: Validate connection to Firestore
 async function testConnection() {
