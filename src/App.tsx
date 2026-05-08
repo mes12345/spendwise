@@ -9,157 +9,268 @@ import TransactionInput from './components/TransactionInput';
 import TransactionList from './components/TransactionList';
 import SettingsModal from './components/SettingsModal';
 import ProposedSubscriptions from './components/ProposedSubscriptions';
+import Login from './components/Login';
 import { Transaction, Timeframe, Subscription } from './types';
 import { INITIAL_TRANSACTIONS } from './constants';
 import { isSameMonth, format } from 'date-fns';
+import { useAuth } from './components/FirebaseProvider';
+import { db, handleFirestoreError, OperationType } from './services/firebase';
+import { 
+  collection, 
+  doc, 
+  onSnapshot, 
+  setDoc, 
+  deleteDoc, 
+  writeBatch,
+  query,
+  orderBy,
+  getDoc
+} from 'firebase/firestore';
 
 type Tab = 'Dashboard' | 'Add' | 'Transactions';
 
 const App: React.FC = () => {
+  const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('Dashboard');
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    try {
-      const saved = localStorage.getItem('spendwise_transactions');
-      return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-    } catch (e) {
-      console.error('Failed to parse transactions', e);
-      return INITIAL_TRANSACTIONS;
-    }
-  });
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => {
-    try {
-      const saved = localStorage.getItem('spendwise_subscriptions');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.error('Failed to parse subscriptions', e);
-      return [];
-    }
-  });
-  const [budget, setBudget] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('spendwise_budget');
-      return saved ? parseFloat(saved) : 2000;
-    } catch (e) {
-      console.error('Failed to parse budget', e);
-      return 2000;
-    }
-  });
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [budget, setBudget] = useState<number>(2000);
+  const [dataLoading, setDataLoading] = useState(true);
   const [timeframe, setTimeframe] = useState<Timeframe>('Month');
   const [showSettings, setShowSettings] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
+  // Sync with Firestore
   useEffect(() => {
-    console.info("SpendWise: App component mounted.");
-  }, []);
+    if (!user) {
+      setTransactions([]);
+      setSubscriptions([]);
+      setBudget(2000);
+      setDataLoading(false);
+      return;
+    }
 
-  useEffect(() => {
-    localStorage.setItem('spendwise_transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    setDataLoading(true);
+    const userId = user.uid;
 
-  useEffect(() => {
-    localStorage.setItem('spendwise_subscriptions', JSON.stringify(subscriptions));
-  }, [subscriptions]);
-
-  useEffect(() => {
-    localStorage.setItem('spendwise_budget', budget.toString());
-  }, [budget]);
-
-  const handleSaveTransaction = (t: Omit<Transaction, 'id' | 'date'>, date: string, isRecurring: boolean) => {
-    if (editingTransaction) {
-      let subId = editingTransaction.subscriptionId;
-      
-      // If turned on recurring and didn't have one before
-      if (isRecurring && !subId) {
-        subId = Math.random().toString(36).substr(2, 9);
-        const newSub: Subscription = {
-          id: subId,
-          description: t.description,
-          vendor: t.vendor,
-          amount: t.amount,
-          category: t.category,
-          dayOfMonth: new Date(date).getDate(),
-          active: true
-        };
-        setSubscriptions(prev => [...prev, newSub]);
-      } 
-      // If turned off recurring
-      else if (!isRecurring && subId) {
-        subId = undefined;
+    // 1. Sync User Profile (Budget)
+    const userDocRef = doc(db, 'users', userId);
+    const unsubUser = onSnapshot(userDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setBudget(snapshot.data().monthlyLimit || 2000);
+      } else {
+        // Initialize user doc if it doesn't exist
+        setDoc(userDocRef, { 
+          monthlyLimit: 2000, 
+          email: user.email,
+          createdAt: new Date().toISOString()
+        }).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${userId}`));
       }
-      // If it's still recurring, update the subscription details
-      else if (isRecurring && subId) {
-        setSubscriptions(prev => prev.map(s => 
-          s.id === subId 
-            ? { 
-                ...s, 
-                description: t.description, 
-                vendor: t.vendor, 
-                amount: t.amount, 
-                category: t.category,
-                dayOfMonth: new Date(date).getDate()
-              } 
-            : s
-        ));
+    }, (err) => handleFirestoreError(err, OperationType.GET, `users/${userId}`));
+
+    // 2. Sync Transactions
+    const transRef = collection(db, 'users', userId, 'transactions');
+    const qTrans = query(transRef, orderBy('date', 'desc'));
+    const unsubTrans = onSnapshot(qTrans, (snapshot) => {
+      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Transaction));
+      setTransactions(list);
+      setDataLoading(false);
+    }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${userId}/transactions`));
+
+    // 3. Sync Subscriptions
+    const subRef = collection(db, 'users', userId, 'subscriptions');
+    const unsubSub = onSnapshot(subRef, (snapshot) => {
+      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Subscription));
+      setSubscriptions(list);
+    }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${userId}/subscriptions`));
+
+    return () => {
+      unsubUser();
+      unsubTrans();
+      unsubSub();
+    };
+  }, [user]);
+
+  const handleSaveTransaction = async (t: Omit<Transaction, 'id' | 'date'>, date: string, isRecurring: boolean) => {
+    if (!user) return;
+    const userId = user.uid;
+    const batch = writeBatch(db);
+
+    try {
+      if (editingTransaction) {
+        let subId = editingTransaction.subscriptionId;
+        
+        // If turned on recurring and didn't have one before
+        if (isRecurring && !subId) {
+          subId = doc(collection(db, 'placeholder')).id;
+          const subRef = doc(db, 'users', userId, 'subscriptions', subId);
+          batch.set(subRef, {
+            description: t.description,
+            vendor: t.vendor,
+            amount: t.amount,
+            category: t.category,
+            dayOfMonth: new Date(date).getDate(),
+            active: true
+          });
+        } 
+        // If turned off recurring
+        else if (!isRecurring && subId) {
+          const subRef = doc(db, 'users', userId, 'subscriptions', subId);
+          batch.delete(subRef);
+          subId = undefined;
+        }
+        // If it's still recurring, update the subscription details
+        else if (isRecurring && subId) {
+          const subRef = doc(db, 'users', userId, 'subscriptions', subId);
+          batch.update(subRef, { 
+            description: t.description, 
+            vendor: t.vendor, 
+            amount: t.amount, 
+            category: t.category,
+            dayOfMonth: new Date(date).getDate()
+          });
+        }
+
+        const transRef = doc(db, 'users', userId, 'transactions', editingTransaction.id);
+        batch.update(transRef, { ...t, date, subscriptionId: subId || null });
+        
+        await batch.commit();
+        setEditingTransaction(null);
+      } else {
+        const transId = doc(collection(db, 'placeholder')).id;
+        const subId = isRecurring ? doc(collection(db, 'placeholder')).id : undefined;
+        
+        const transRef = doc(db, 'users', userId, 'transactions', transId);
+        batch.set(transRef, {
+          ...t,
+          date: date,
+          subscriptionId: subId || null
+        });
+
+        if (isRecurring && subId) {
+          const subRef = doc(db, 'users', userId, 'subscriptions', subId);
+          batch.set(subRef, {
+            description: t.description,
+            vendor: t.vendor,
+            amount: t.amount,
+            category: t.category,
+            dayOfMonth: new Date(date).getDate(),
+            active: true
+          });
+        }
+
+        await batch.commit();
+        setActiveTab('Transactions');
       }
-
-      setTransactions(prev => prev.map(item => 
-        item.id === editingTransaction.id 
-          ? { ...item, ...t, date, subscriptionId: subId } 
-          : item
-      ));
-      setEditingTransaction(null);
-    } else {
-      const subId = isRecurring ? Math.random().toString(36).substr(2, 9) : undefined;
-      
-      const newTransaction: Transaction = {
-        ...t,
-        id: Math.random().toString(36).substr(2, 9),
-        date: date,
-        subscriptionId: subId
-      };
-
-      if (isRecurring) {
-        const newSub: Subscription = {
-          id: subId!,
-          description: t.description,
-          vendor: t.vendor,
-          amount: t.amount,
-          category: t.category,
-          dayOfMonth: new Date(date).getDate(),
-          active: true
-        };
-        setSubscriptions(prev => [...prev, newSub]);
-      }
-
-      setTransactions(prev => [newTransaction, ...prev]);
-      setActiveTab('Transactions');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `users/${userId}`);
     }
   };
 
-  const deleteTransaction = (id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
+  const deleteTransaction = async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'transactions', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `users/${user.uid}/transactions/${id}`);
+    }
   };
 
-  const deleteSubscription = (id: string) => {
-    setSubscriptions(prev => prev.filter(s => s.id !== id));
+  const deleteSubscription = async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'subscriptions', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `users/${user.uid}/subscriptions/${id}`);
+    }
   };
 
-  const acceptProposedSubscription = (sub: Subscription) => {
+  const acceptProposedSubscription = async (sub: Subscription) => {
+    if (!user) return;
     const now = new Date();
     const date = new Date(now.getFullYear(), now.getMonth(), sub.dayOfMonth);
     
-    const newTransaction: Transaction = {
-      id: Math.random().toString(36).substr(2, 9),
-      description: sub.description,
-      vendor: sub.vendor,
-      amount: sub.amount,
-      category: sub.category,
-      date: date.toISOString(),
-      subscriptionId: sub.id
-    };
-
-    setTransactions(prev => [newTransaction, ...prev]);
+    try {
+      const transId = doc(collection(db, 'placeholder')).id;
+      await setDoc(doc(db, 'users', user.uid, 'transactions', transId), {
+        description: sub.description,
+        vendor: sub.vendor,
+        amount: sub.amount,
+        category: sub.category,
+        date: date.toISOString(),
+        subscriptionId: sub.id
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}/transactions`);
+    }
   };
+
+  const handleUpdateBudget = async (val: number) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'users', user.uid), { monthlyLimit: val }, { merge: true });
+      setShowSettings(false);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
+    }
+  };
+
+  const proposedSubscriptions = useMemo(() => {
+    const now = new Date();
+    return subscriptions.filter(sub => {
+      const existsThisMonth = transactions.some(t => 
+        t.subscriptionId === sub.id && isSameMonth(new Date(t.date), now)
+      );
+      return !existsThisMonth && sub.active;
+    });
+  }, [subscriptions, transactions]);
+
+  const handleDoneClick = React.useCallback(() => {
+    const form = document.getElementById('add-transaction-form') as HTMLFormElement;
+    if (form) {
+      form.requestSubmit();
+    }
+  }, []);
+
+  const rightHeaderElement = useMemo(() => {
+    if (activeTab === 'Add') {
+      return (
+        <button 
+          onClick={handleDoneClick}
+          className="flex items-center gap-1.5 px-4 py-2 bg-blue-500 text-white rounded-full text-sm font-bold shadow-md active:scale-95 transition-all"
+        >
+          <Check size={16} />
+          Done
+        </button>
+      );
+    }
+    return (
+      <button 
+        onClick={() => setShowSettings(true)}
+        aria-label="Open settings"
+        className="p-2 bg-gray-200/50 rounded-full text-gray-600 hover:bg-gray-200 active:scale-95 transition-all"
+      >
+        <Settings size={20} />
+      </button>
+    );
+  }, [activeTab, handleDoneClick]);
+
+  if (authLoading || (user && dataLoading)) {
+    return (
+      <div className="max-w-md mx-auto h-full bg-white flex flex-col items-center justify-center p-10">
+        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Syncing with Cloud...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto h-full">
+        <Login />
+      </div>
+    );
+  }
 
   const handleExportData = () => {
     const exportData = {
@@ -183,25 +294,30 @@ const App: React.FC = () => {
 
   const handleImportData = (data: any) => {
     if (data.app === 'SpendWise' && data.transactions) {
-      setTransactions(data.transactions);
-      setSubscriptions(data.subscriptions || []);
-      setBudget(data.budget || 2000);
-      alert("Backup restored successfully!");
-      setShowSettings(false);
-    } else {
-      alert("Invalid backup file. Please ensure you are uploading a valid SpendWise export.");
+      const userId = user.uid;
+      const batch = writeBatch(db);
+      
+      data.transactions.forEach((t: any) => {
+        const ref = doc(collection(db, 'users', userId, 'transactions'));
+        batch.set(ref, t);
+      });
+      
+      if (data.subscriptions) {
+        data.subscriptions.forEach((s: any) => {
+          const ref = doc(db, 'users', userId, 'subscriptions', s.id);
+          batch.set(ref, s);
+        });
+      }
+
+      if (data.budget) {
+        batch.update(doc(db, 'users', userId), { monthlyLimit: data.budget });
+      }
+
+      batch.commit().then(() => {
+        setShowSettings(false);
+      }).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${userId}`));
     }
   };
-
-  const proposedSubscriptions = useMemo(() => {
-    const now = new Date();
-    return subscriptions.filter(sub => {
-      const existsThisMonth = transactions.some(t => 
-        t.subscriptionId === sub.id && isSameMonth(new Date(t.date), now)
-      );
-      return !existsThisMonth && sub.active;
-    });
-  }, [subscriptions, transactions]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -247,36 +363,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDoneClick = React.useCallback(() => {
-    const form = document.getElementById('add-transaction-form') as HTMLFormElement;
-    if (form) {
-      form.requestSubmit();
-    }
-  }, []);
-
-  const rightHeaderElement = useMemo(() => {
-    if (activeTab === 'Add') {
-      return (
-        <button 
-          onClick={handleDoneClick}
-          className="flex items-center gap-1.5 px-4 py-2 bg-blue-500 text-white rounded-full text-sm font-bold shadow-md active:scale-95 transition-all"
-        >
-          <Check size={16} />
-          Done
-        </button>
-      );
-    }
-    return (
-      <button 
-        onClick={() => setShowSettings(true)}
-        aria-label="Open settings"
-        className="p-2 bg-gray-200/50 rounded-full text-gray-600 hover:bg-gray-200 active:scale-95 transition-all"
-      >
-        <Settings size={20} />
-      </button>
-    );
-  }, [activeTab, handleDoneClick]);
-
   const tabItems = [
     { id: 'Dashboard', icon: <LayoutGrid size={24} />, label: 'Overview' },
     { id: 'Add', icon: <PlusCircle size={28} className="text-blue-500" />, label: 'Add' },
@@ -314,10 +400,7 @@ const App: React.FC = () => {
       {showSettings && (
         <SettingsModal 
           currentBudget={budget} 
-          onUpdateBudget={(val) => {
-            setBudget(val);
-            setShowSettings(false);
-          }}
+          onUpdateBudget={handleUpdateBudget}
           onExport={handleExportData}
           onImport={handleImportData}
           onClose={() => setShowSettings(false)}

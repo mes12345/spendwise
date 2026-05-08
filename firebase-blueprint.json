@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and budget settings",
+      "type": "object",
+      "properties": {
+        "monthlyLimit": {
+          "type": "number",
+          "description": "The user's monthly spending limit"
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the user account was created"
+        }
+      },
+      "required": ["monthlyLimit", "email", "createdAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A spending transaction",
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "vendor": { "type": "string" },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "subscriptionId": { "type": "string" }
+      },
+      "required": ["description", "vendor", "amount", "category", "date"]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "description": "A recurring payment definition",
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "vendor": { "type": "string" },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "dayOfMonth": { "type": "number" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["description", "vendor", "amount", "category", "dayOfMonth", "active"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Main user document"
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "User's transactions"
+    },
+    "/users/{userId}/subscriptions/{subscriptionId}": {
+      "schema": "Subscription",
+      "description": "User's recurring payments"
+    }
+  }
+}

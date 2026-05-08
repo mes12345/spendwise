@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { FirebaseProvider } from './components/FirebaseProvider';
 
 console.info("SpendWise: index.tsx module loaded.");
 
@@ -34,7 +35,9 @@ const init = () => {
     const root = createRoot(rootElement);
     root.render(
       <React.StrictMode>
-        <App />
+        <FirebaseProvider>
+          <App />
+        </FirebaseProvider>
       </React.StrictMode>
     );
 

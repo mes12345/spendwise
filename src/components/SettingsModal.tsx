@@ -1,6 +1,7 @@
 
 import React, { useState, useRef } from 'react';
-import { Wallet, Check, Download, Upload, ShieldCheck, Database, X, ChevronRight } from 'lucide-react';
+import { Wallet, Check, Download, Upload, ShieldCheck, Database, X, ChevronRight, LogOut, User } from 'lucide-react';
+import { useAuth } from './FirebaseProvider';
 
 interface SettingsModalProps {
   currentBudget: number;
@@ -19,6 +20,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [val, setVal] = useState(currentBudget.toString());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user, logout } = useAuth();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -57,6 +59,36 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <div className="flex-1 overflow-y-auto hide-scrollbar p-6 space-y-10">
           
+          {/* Section: Account */}
+          <section>
+            <div className="flex items-center gap-2 mb-4 px-1">
+              <User size={18} className="text-blue-500" />
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Account</h3>
+            </div>
+            <div className="bg-white rounded-[28px] p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-4 mb-6">
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt="Profile" className="w-12 h-12 rounded-full border-2 border-blue-50" />
+                ) : (
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-500 font-bold text-lg">
+                    {user?.email?.[0].toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <h4 className="font-bold text-gray-900 leading-tight">{user?.displayName || 'User'}</h4>
+                  <p className="text-xs text-gray-400">{user?.email}</p>
+                </div>
+              </div>
+              <button 
+                onClick={logout}
+                className="w-full bg-red-50 text-red-500 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all border border-red-100/50"
+              >
+                <LogOut size={18} />
+                Sign Out
+              </button>
+            </div>
+          </section>
+
           {/* Section 1: Financial Budget */}
           <section>
             <div className="flex items-center gap-2 mb-4 px-1">
@@ -94,7 +126,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="bg-white rounded-[28px] p-6 shadow-sm border border-gray-100 space-y-4">
               <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-50 mb-2">
                 <p className="text-blue-600 text-xs leading-relaxed font-medium">
-                  Your data is 100% private and stays on this device. Create a backup to transfer it or save it forever.
+                  Your data is securely synced to your cloud account. You can export a copy for your records anytime.
                 </p>
               </div>
               
@@ -119,7 +151,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100 transition-colors">
                     <Upload size={18} />
                   </div>
-                  <span className="text-sm">Restore from Backup</span>
+                  <span className="text-sm">Import into Cloud</span>
                 </div>
                 <ChevronRight size={16} className="text-gray-300" />
               </button>
@@ -134,13 +166,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               
               <div className="flex items-center gap-2 pt-2 px-1">
                 <ShieldCheck size={12} className="text-green-500" />
-                <span className="text-[10px] text-gray-400 italic">Secure, local-only processing.</span>
+                <span className="text-[10px] text-gray-400 italic">Data is encrypted and private.</span>
               </div>
             </div>
           </section>
 
           <div className="text-center pt-4 pb-8">
-            <p className="text-[10px] text-gray-300 font-bold tracking-widest uppercase">SpendWise Pro • Privacy First</p>
+            <p className="text-[10px] text-gray-300 font-bold tracking-widest uppercase">SpendWise Pro • Secure Sync</p>
           </div>
         </div>
       </div>

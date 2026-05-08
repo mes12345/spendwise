@@ -1,0 +1,104 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validations ---
+
+    function isValidUser(data) {
+      let keys = data.keys();
+      return (keys.hasAny(['monthlyLimit']) ? data.monthlyLimit is number && data.monthlyLimit >= 0 : true)
+        && (keys.hasAny(['email']) ? data.email is string && data.email.size() <= 256 : true)
+        && (keys.hasAny(['createdAt']) ? data.createdAt is string && data.createdAt.size() <= 100 : true);
+    }
+
+    function isValidTransaction(data) {
+      let keys = data.keys();
+      return (keys.hasAny(['description']) ? data.description is string && data.description.size() <= 500 : true)
+        && (keys.hasAny(['vendor']) ? data.vendor is string && data.vendor.size() <= 500 : true)
+        && (keys.hasAny(['amount']) ? data.amount is number : true)
+        && (keys.hasAny(['category']) ? data.category is string && data.category.size() <= 100 : true)
+        && (keys.hasAny(['date']) ? data.date is string && data.date.size() <= 100 : true)
+        && (keys.hasAny(['subscriptionId']) ? (data.subscriptionId == null || data.subscriptionId is string) : true);
+    }
+
+    function isValidSubscription(data) {
+      let keys = data.keys();
+      return (keys.hasAny(['description']) ? data.description is string && data.description.size() <= 500 : true)
+        && (keys.hasAny(['vendor']) ? data.vendor is string && data.vendor.size() <= 500 : true)
+        && (keys.hasAny(['amount']) ? data.amount is number : true)
+        && (keys.hasAny(['category']) ? data.category is string && data.category.size() <= 100 : true)
+        && (keys.hasAny(['dayOfMonth']) ? data.dayOfMonth is int && data.dayOfMonth >= 1 && data.dayOfMonth <= 31 : true)
+        && (keys.hasAny(['active']) ? data.active is bool : true);
+    }
+
+    // --- Matches ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isVerified() 
+        && incoming().keys().hasAll(['monthlyLimit', 'email', 'createdAt'])
+        && incoming().keys().size() == 3
+        && isValidUser(incoming()) 
+        && incoming().email == request.auth.token.email;
+      allow update: if isOwner(userId) && isVerified() 
+        && isValidUser(incoming()) 
+        && (incoming().keys().hasAny(['email']) ? incoming().email == existing().email : true)
+        && (incoming().diff(existing()).affectedKeys().hasOnly(['monthlyLimit']));
+
+      match /transactions/{transactionId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) && isVerified() 
+          && isValidId(transactionId) 
+          && incoming().keys().hasAll(['description', 'vendor', 'amount', 'category', 'date'])
+          && isValidTransaction(incoming());
+        allow update: if isOwner(userId) && isVerified() 
+          && isValidTransaction(incoming())
+          && (incoming().diff(existing()).affectedKeys().hasOnly(['description', 'vendor', 'amount', 'category', 'date', 'subscriptionId']));
+        allow delete: if isOwner(userId) && isVerified();
+      }
+
+      match /subscriptions/{subscriptionId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) && isVerified() 
+          && isValidId(subscriptionId) 
+          && incoming().keys().hasAll(['description', 'vendor', 'amount', 'category', 'dayOfMonth', 'active'])
+          && isValidSubscription(incoming());
+        allow update: if isOwner(userId) && isVerified() 
+          && isValidSubscription(incoming())
+          && (incoming().diff(existing()).affectedKeys().hasOnly(['description', 'vendor', 'amount', 'category', 'dayOfMonth', 'active']));
+        allow delete: if isOwner(userId) && isVerified();
+      }
+    }
+  }
+}
