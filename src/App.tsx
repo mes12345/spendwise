@@ -61,21 +61,10 @@ const App: React.FC = () => {
 
   const filteredTransactions = useMemo(() => {
     let result = transactions.filter(t => {
-      const transDate = new Date(t.date);
-      const start = activityStartDate ? new Date(activityStartDate) : null;
-      const end = activityEndDate ? new Date(activityEndDate) : null;
+      const transDateStr = format(new Date(t.date), 'yyyy-MM-dd');
       
-      if (start) {
-        const startOfDay = new Date(start);
-        startOfDay.setHours(0, 0, 0, 0);
-        if (transDate < startOfDay) return false;
-      }
-      
-      if (end) {
-        const endOfDay = new Date(end);
-        endOfDay.setHours(23, 59, 59, 999);
-        if (transDate > endOfDay) return false;
-      }
+      if (activityStartDate && transDateStr < activityStartDate) return false;
+      if (activityEndDate && transDateStr > activityEndDate) return false;
 
       if (activitySearch) {
         const search = activitySearch.toLowerCase();
@@ -146,6 +135,13 @@ const App: React.FC = () => {
       alert("Import failed. Please check the file format.");
     }
   }, [importData]);
+
+  const handleCategoryClick = useCallback((category: Category, range: { start: Date, end: Date }) => {
+    setActivityCategory(category);
+    setActivityStartDate(format(range.start, 'yyyy-MM-dd'));
+    setActivityEndDate(format(range.end, 'yyyy-MM-dd'));
+    setActiveTab('Transactions');
+  }, []);
 
   const handleSaveTransaction = async (
     t: Omit<Transaction, 'id' | 'date'>, 
@@ -238,6 +234,7 @@ const App: React.FC = () => {
               budget={budget} 
               timeframe={dashboardTimeframe} 
               onTimeframeChange={setDashboardTimeframe} 
+              onCategoryClick={handleCategoryClick}
             />
           </motion.div>
         );

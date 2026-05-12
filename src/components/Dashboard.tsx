@@ -20,9 +20,10 @@ interface DashboardProps {
   budget: number;
   timeframe: Timeframe;
   onTimeframeChange: (t: Timeframe) => void;
+  onCategoryClick?: (category: Category, range: { start: Date, end: Date }) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, onTimeframeChange }) => {
+const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, onTimeframeChange, onCategoryClick }) => {
   const [selectedMonth, setSelectedMonth] = useState<Date>(startOfMonth(new Date()));
 
   const availableMonths = useMemo(() => {
@@ -300,12 +301,13 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
         </div>
         <div className="grid grid-cols-2 gap-3">
           {categoryData.slice(0, 4).map((cat, i) => (
-            <motion.div 
+            <motion.button 
               key={cat.name}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.1 }}
-              className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-3 group hover:border-indigo-100 transition-all cursor-default"
+              onClick={() => onCategoryClick?.(cat.name as Category, dateRange)}
+              className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-3 group hover:border-indigo-100 hover:shadow-md transition-all text-left w-full active:scale-95"
             >
               <div className="flex items-center gap-2">
                 <div 
@@ -320,7 +322,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
                 <div className="text-lg font-black text-slate-900">${cat.value.toFixed(0)}</div>
                 <div className="text-[9px] font-bold text-slate-400">{Math.round((cat.value / currentSpending) * 100)}%</div>
               </div>
-            </motion.div>
+            </motion.button>
           ))}
         </div>
       </section>
