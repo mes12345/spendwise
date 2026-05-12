@@ -1,8 +1,10 @@
+
 import React from 'react';
 import { Transaction } from '../types';
 import { CATEGORY_CONFIG } from '../constants';
-import { format } from 'date-fns';
-import { Trash2, RefreshCw, Pencil } from 'lucide-react';
+import { format, isToday, isYesterday } from 'date-fns';
+import { Trash2, RefreshCw, Pencil, MoreVertical } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -16,80 +18,100 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onDelet
   );
 
   const groupedTransactions = sortedTransactions.reduce((acc, t) => {
-    const month = format(new Date(t.date), 'MMMM yyyy');
-    if (!acc[month]) acc[month] = [];
-    acc[month].push(t);
+    const date = new Date(t.date);
+    let dayLabel: string;
+    
+    if (isToday(date)) dayLabel = 'Today';
+    else if (isYesterday(date)) dayLabel = 'Yesterday';
+    else dayLabel = format(date, 'EEEE, MMM d');
+
+    if (!acc[dayLabel]) acc[dayLabel] = [];
+    acc[dayLabel].push(t);
     return acc;
   }, {} as Record<string, Transaction[]>);
 
-  const months = Object.keys(groupedTransactions);
+  const dayLabels = Object.keys(groupedTransactions);
+
+  if (transactions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 px-10 text-center">
+        <div className="w-20 h-20 bg-slate-50 rounded-[32px] flex items-center justify-center mb-6">
+          <MoreVertical className="text-slate-200 rotate-90" size={32} />
+        </div>
+        <h3 className="text-lg font-bold text-slate-900">No activity yet</h3>
+        <p className="text-sm text-slate-400 mt-2">Any spending you record will appear here in chronological order.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-3 px-5 pb-32">
-      <h3 className="text-xl font-bold mb-1">Recent Activity</h3>
-      {sortedTransactions.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 text-center border border-dashed border-gray-300">
-          <p className="text-gray-400">No transactions yet.</p>
-        </div>
-      ) : (
-        months.map((month) => (
-          <div key={month} className="flex flex-col gap-3 mt-8 first:mt-0">
-            <div className="flex items-center gap-2 px-1 mb-1">
-              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{month}</h4>
-              <div className="flex-1 h-[1px] bg-gray-200/50" />
-            </div>
-            {groupedTransactions[month].map((t) => {
+    <div className="flex flex-col gap-8 px-6 pt-4 pb-32">
+      {dayLabels.map((dayLabel, dayIdx) => (
+        <section key={dayLabel} className="space-y-3">
+          <h4 className="px-1 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{dayLabel}</h4>
+          <div className="space-y-0.5 rounded-[24px] overflow-hidden border border-slate-100 bg-slate-50/50">
+            {groupedTransactions[dayLabel].map((t, tIdx) => {
               const config = CATEGORY_CONFIG[t.category];
               return (
-                <div 
+                <motion.div 
                   key={t.id} 
-                  className="bg-white p-4 rounded-2xl flex items-center justify-between shadow-sm group hover:shadow-md transition-all active:scale-[0.98]"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: (dayIdx * 0.1) + (tIdx * 0.05) }}
+                  className="bg-white p-4 flex items-center justify-between group active:bg-slate-50 transition-colors cursor-pointer relative"
+                  onClick={() => onEdit(t)}
                 >
-                  <div className="flex items-center gap-4 overflow-hidden">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div 
-                      className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-white"
+                      className="w-10 h-10 shrink-0 rounded-2xl flex items-center justify-center text-white shadow-lg"
                       style={{ backgroundColor: config.color }}
                     >
                       {config.icon}
                     </div>
-                    <div className="overflow-hidden">
-                      <div className="flex items-center gap-1.5 overflow-hidden">
-                        <h4 className="font-bold text-gray-900 leading-tight truncate">{t.description}</h4>
-                        {t.subscriptionId && <RefreshCw size={10} className="text-blue-500 shrink-0" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="font-bold text-slate-900 leading-tight truncate text-sm">{t.vendor}</h4>
+                        {t.subscriptionId && (
+                          <div className="bg-indigo-50 p-0.5 rounded-full">
+                            <RefreshCw size={8} className="text-indigo-500 animate-spin-slow" />
+                          </div>
+                        )}
                       </div>
-                      <p className="text-xs text-blue-500 font-bold mt-0.5 truncate uppercase tracking-tighter">
-                        {t.vendor}
-                      </p>
-                      <p className="text-[10px] text-gray-400 font-medium mt-0.5">
-                        {format(new Date(t.date), 'MMMM d, yyyy')} • {t.category}
+                      <p className="text-[10px] text-slate-400 font-medium mt-0.5 truncate uppercase tracking-widest">
+                        {t.description || t.category}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-bold text-gray-900 mr-2">-${t.amount.toFixed(2)}</span>
-                    <div className="flex items-center">
-                      <button 
-                        onClick={() => onEdit(t)}
-                        aria-label="Edit transaction"
-                        className="p-2 text-gray-300 hover:text-blue-500 transition-colors"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button 
-                        onClick={() => onDelete(t.id)}
-                        aria-label="Delete transaction"
-                        className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="font-black text-slate-900 text-sm">-${t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                      <div className="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">{format(new Date(t.date), 'h:mm a')}</div>
                     </div>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(t.id);
+                      }}
+                      className="p-2 text-slate-200 hover:text-rose-500 transition-colors active:scale-110"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
-        ))
-      )}
+        </section>
+      ))}
+      <style>{`
+        .animate-spin-slow {
+          animation: spin 8s linear infinite;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };

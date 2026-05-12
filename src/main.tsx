@@ -4,85 +4,14 @@ import App from './App';
 import './index.css';
 import { FirebaseProvider } from './components/FirebaseProvider';
 
-// Mark as initialized IMMEDIATELY when the module starts loading
-(window as any).SpendWiseInitialized = true;
-console.info("SpendWise: main.tsx module loading started.");
+const rootElement = document.getElementById('root');
+if (!rootElement) throw new Error('Failed to find the root element');
 
-// Global error listener to catch issues during script execution
-window.onerror = (message, source, lineno, colno, error) => {
-  console.error("SpendWise: Global error caught:", { message, source, lineno, colno, error });
-  const errorDisplay = document.getElementById('error-display');
-  if (errorDisplay) {
-    errorDisplay.innerText = `Runtime Error: ${message}`;
-    errorDisplay.classList.add('show');
-  }
-  const loadingText = document.getElementById('loading-text');
-  if (loadingText) loadingText.innerText = "Error";
-};
-
-const init = () => {
-  console.info("SpendWise: Initializing React...");
-  const rootElement = document.getElementById('root');
-  const loader = document.getElementById('loading');
-
-  if (!rootElement) {
-    console.error("SpendWise: Root element not found.");
-    return;
-  }
-
-  try {
-    const root = createRoot(rootElement);
-    root.render(
-      <React.StrictMode>
-        <FirebaseProvider>
-          <App />
-        </FirebaseProvider>
-      </React.StrictMode>
-    );
-
-    console.info("SpendWise: React render triggered.");
-
-    // Fade out loader
-    if (loader) {
-      setTimeout(() => {
-        console.info("SpendWise: Hiding loader...");
-        loader.classList.add('fade-out');
-        setTimeout(() => {
-          loader.style.display = 'none';
-        }, 500);
-      }, 500);
-    }
-  } catch (error) {
-    console.error("SpendWise: Initialization failed.", error);
-    const errorDisplay = document.getElementById('error-display');
-    if (errorDisplay) {
-      errorDisplay.innerText = `Initialization Error: ${error instanceof Error ? error.message : String(error)}`;
-      errorDisplay.classList.add('show');
-    }
-    const loadingText = document.getElementById('loading-text');
-    if (loadingText) loadingText.innerText = "Error";
-  }
-};
-
-// Failsafe: Remove loader after 8 seconds if it's still there
-setTimeout(() => {
-  const loader = document.getElementById('loading');
-  if (loader && !loader.classList.contains('fade-out')) {
-    console.warn("SpendWise: Failsafe triggered - removing loader.");
-    loader.classList.add('fade-out');
-    setTimeout(() => {
-      loader.style.display = 'none';
-    }, 500);
-  }
-}, 8000);
-
-// Modules are deferred by default, but we can ensure DOM is ready
-try {
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    init();
-  } else {
-    document.addEventListener('DOMContentLoaded', init);
-  }
-} catch (error) {
-  console.error("SpendWise: Critical load error", error);
-}
+const root = createRoot(rootElement);
+root.render(
+  <React.StrictMode>
+    <FirebaseProvider>
+      <App />
+    </FirebaseProvider>
+  </React.StrictMode>
+);

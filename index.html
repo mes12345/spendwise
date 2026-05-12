@@ -63,28 +63,9 @@
         }
         .error-container.show { display: block; }
     </style>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="./src/main.tsx"></script>
 </head>
 <body>
-    <div id="loading" class="loading-screen">
-        <div class="spinner"></div>
-        <p id="loading-text" class="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">Initializing...</p>
-        <div id="error-display" class="error-container"></div>
-    </div>
-
     <div id="root"></div>
-    
-    <script>
-        window.SpendWiseInitialized = false;
-        setTimeout(() => {
-            if (!window.SpendWiseInitialized) {
-                const errorDisplay = document.getElementById('error-display');
-                if (errorDisplay) {
-                    errorDisplay.innerHTML = "<strong>Initialization Timeout</strong><br>The application took too long to load. This can happen if the background build process is still running or if there's a script error.<br><br>Refresh the page or check the console.";
-                    errorDisplay.classList.add('show');
-                }
-            }
-        }, 15000);
-    </script>
 </body>
 </html>
