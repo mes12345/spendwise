@@ -1,14 +1,24 @@
 
 import React, { useState, useEffect } from 'react';
 import { Calendar, Tag, User, AlignLeft, RefreshCw, Check, X, Wand2, Sparkles, Building2 } from 'lucide-react';
-import { Transaction, Category } from '../types';
+import { Transaction, Category, RecurrenceType, Subscription } from '../types';
 import { CATEGORY_CONFIG, getCategoryConfig } from '../constants';
-import { format, parse } from 'date-fns';
+import { format, parse, getDate, getDay } from 'date-fns';
 import { parseNaturalLanguageTransaction } from '../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
+import { getRecurrenceLabel } from '../hooks/useFinanceData';
 
 interface TransactionInputProps {
-  onAddTransaction: (t: Omit<Transaction, 'id' | 'date'>, date: string, isRecurring: boolean) => void;
+  onAddTransaction: (
+    t: Omit<Transaction, 'id' | 'date' | 'userId' | 'householdId'>, 
+    date: string, 
+    isRecurring: boolean,
+    recurringOptions?: {
+      frequency: number;
+      recurrenceType: RecurrenceType;
+      weekdayConfig?: { weekIndex: number; dayOfWeek: number };
+    }
+  ) => Promise<void>;
   initialData?: Transaction;
   onCancel?: () => void;
 }
@@ -20,12 +30,15 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
     amount: '',
     category: Category.Other,
     date: format(new Date(), 'yyyy-MM-dd'),
-    isRecurring: false
+    isRecurring: false,
+    frequency: 1,
+    recurrenceType: RecurrenceType.MonthDay
   });
 
   const [aiInput, setAiInput] = useState('');
   const [isAiParsing, setIsAiParsing] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -35,7 +48,9 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
         amount: initialData.amount.toString(),
         category: initialData.category,
         date: format(new Date(initialData.date), 'yyyy-MM-dd'),
-        isRecurring: !!initialData.subscriptionId
+        isRecurring: !!initialData.subscriptionId,
+        frequency: 1,
+        recurrenceType: RecurrenceType.MonthDay
       });
     }
   }, [initialData]);
@@ -54,7 +69,9 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
           amount: result.amount?.toString() || '',
           category: (result.category as Category) || Category.Other,
           date: result.date || format(new Date(), 'yyyy-MM-dd'),
-          isRecurring: !!result.isRecurring
+          isRecurring: !!result.isRecurring,
+          frequency: 1,
+          recurrenceType: RecurrenceType.MonthDay
         });
         setAiInput('');
       } else {
@@ -77,30 +94,56 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.description || !formData.amount || !formData.vendor) return;
 
-    const finalDate = parse(formData.date, 'yyyy-MM-dd', new Date());
-    const now = new Date();
-    finalDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+    setIsSubmitting(true);
+    setAiError(null);
 
-    onAddTransaction({
-      description: formData.description,
-      vendor: formData.vendor,
-      amount: parseFloat(formData.amount) || 0,
-      category: formData.category
-    }, finalDate.toISOString(), formData.isRecurring);
+    try {
+      const finalDate = parse(formData.date, 'yyyy-MM-dd', new Date());
+      const now = new Date();
+      finalDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
 
-    if (!initialData) {
-      setFormData({
-        description: '',
-        vendor: '',
-        amount: '',
-        category: Category.Other,
-        date: format(new Date(), 'yyyy-MM-dd'),
-        isRecurring: false
-      });
+      const recurrenceInfo = getRecurrenceLabel(finalDate);
+
+      await onAddTransaction({
+        description: formData.description,
+        vendor: formData.vendor,
+        amount: parseFloat(formData.amount) || 0,
+        category: formData.category
+      }, finalDate.toISOString(), formData.isRecurring, formData.isRecurring ? {
+        frequency: formData.frequency,
+        recurrenceType: formData.recurrenceType,
+        weekdayConfig: formData.recurrenceType === RecurrenceType.Weekday ? {
+          weekIndex: recurrenceInfo.weekIndex,
+          dayOfWeek: recurrenceInfo.dayOfWeek
+        } : undefined
+      } : undefined);
+
+      if (!initialData) {
+        setFormData({
+          description: '',
+          vendor: '',
+          amount: '',
+          category: Category.Other,
+          date: format(new Date(), 'yyyy-MM-dd'),
+          isRecurring: false,
+          frequency: 1,
+          recurrenceType: RecurrenceType.MonthDay
+        });
+      }
+    } catch (err: any) {
+      console.error("Submission error:", err);
+      try {
+        const errorData = JSON.parse(err.message);
+        setAiError(`Save Failed: ${errorData.error}`);
+      } catch {
+        setAiError("Failed to save transaction. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -269,16 +312,85 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
               />
             </button>
           </div>
+
+          <AnimatePresence>
+            {formData.isRecurring && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden bg-slate-50/50"
+              >
+                <div className="py-2 px-4 space-y-4">
+                  <div className="flex justify-between items-center py-3 border-b border-white/50">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Frequency</label>
+                    <div className="flex items-center gap-2">
+                       <span className="text-xs text-slate-500">Every</span>
+                       <select
+                         value={formData.frequency}
+                         onChange={(e) => setFormData(prev => ({ ...prev, frequency: parseInt(e.target.value) }))}
+                         className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-sm font-bold text-indigo-600 focus:outline-none"
+                       >
+                         {[1, 2, 3, 6, 12].map(num => (
+                           <option key={num} value={num}>{num} {num === 1 ? 'Month' : 'Months'}</option>
+                         ))}
+                       </select>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center py-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Recurrence</label>
+                    <div className="flex bg-slate-200 p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, recurrenceType: RecurrenceType.MonthDay }))}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${formData.recurrenceType === RecurrenceType.MonthDay ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                      >
+                        Day of Month
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, recurrenceType: RecurrenceType.Weekday }))}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${formData.recurrenceType === RecurrenceType.Weekday ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                      >
+                        Weekday
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pb-4 pt-1">
+                    <p className="text-[10px] text-slate-400 font-medium italic text-right">
+                      {formData.recurrenceType === RecurrenceType.MonthDay ? 
+                        `Next: ${getRecurrenceLabel(parse(formData.date, 'yyyy-MM-dd', new Date())).dayLabel}` : 
+                        `Next: ${getRecurrenceLabel(parse(formData.date, 'yyyy-MM-dd', new Date())).weekLabel}`
+                      }
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </section>
 
         {!initialData && (
           <div className="flex gap-4 items-center">
             <button
               type="submit"
-              className="flex-1 bg-slate-900 text-white font-black py-5 rounded-3xl shadow-xl shadow-slate-200 active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-[11px]"
+              disabled={isSubmitting}
+              className="flex-1 bg-slate-900 text-white font-black py-5 rounded-3xl shadow-xl shadow-slate-200 active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-[11px] disabled:opacity-50"
             >
-              <Check size={16} />
-              Commit Expense
+              {isSubmitting ? (
+                 <motion.div 
+                   animate={{ rotate: 360 }}
+                   transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                   className="w-4 h-4 border-2 border-white border-t-transparent rounded-full" 
+                 />
+              ) : (
+                <>
+                  <Check size={16} />
+                  Commit Expense
+                </>
+              )}
             </button>
             {onCancel && (
               <button

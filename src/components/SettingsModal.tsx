@@ -1,11 +1,14 @@
 
 import React, { useState, useRef } from 'react';
-import { Wallet, Check, Download, Upload, ShieldCheck, Database, X, ChevronRight, LogOut, User } from 'lucide-react';
+import { Wallet, Check, Download, Upload, ShieldCheck, Database, X, ChevronRight, LogOut, User, Users, Plus, Loader2 } from 'lucide-react';
 import { useAuth } from './FirebaseProvider';
+import { Household } from '../types';
 
 interface SettingsModalProps {
   currentBudget: number;
+  household: Household | null;
   onUpdateBudget: (val: number) => void;
+  onAddMember: (email: string) => Promise<void>;
   onExport: () => void;
   onImport: (data: any) => void;
   onClose: () => void;
@@ -13,26 +16,54 @@ interface SettingsModalProps {
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
   currentBudget, 
+  household,
   onUpdateBudget, 
+  onAddMember,
   onExport, 
   onImport, 
   onClose 
 }) => {
   const [val, setVal] = useState(currentBudget.toString());
+  const [memberEmail, setMemberEmail] = useState('');
+  const [isAddingMember, setIsAddingMember] = useState(false);
+  const [memberError, setMemberError] = useState<string | null>(null);
+  const [memberSuccess, setMemberSuccess] = useState(false);
+  
+  const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user, logout } = useAuth();
+
+  const handleAddMember = async () => {
+    if (!memberEmail) return;
+    setIsAddingMember(true);
+    setMemberError(null);
+    setMemberSuccess(false);
+    try {
+      await onAddMember(memberEmail);
+      setMemberSuccess(true);
+      setMemberEmail('');
+    } catch (err: any) {
+      setMemberError(err.message || "Failed to add member.");
+    } finally {
+      setIsAddingMember(false);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsImporting(true);
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
-        onImport(json);
+        await onImport(json);
       } catch (err) {
         console.error("Failed to parse the backup file.", err);
+        alert("Failed to parse the backup file. Please ensure it's a valid JSON.");
+      } finally {
+        setIsImporting(false);
       }
     };
     reader.readAsText(file);
@@ -88,6 +119,54 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
           </section>
+
+          {/* Section: Household */}
+          {household && (
+            <section>
+              <div className="flex items-center gap-2 mb-4 px-1">
+                <Users size={18} className="text-indigo-600" />
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Household</h3>
+              </div>
+              <div className="bg-white rounded-[28px] p-6 shadow-sm border border-gray-100">
+                <div className="mb-6">
+                  <h4 className="text-sm font-bold text-slate-900 mb-1">{household.name}</h4>
+                  <p className="text-xs text-slate-400">{household.memberUids.length} Member{household.memberUids.length !== 1 ? 's' : ''}</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="relative">
+                    <input 
+                      type="email"
+                      value={memberEmail}
+                      onChange={(e) => setMemberEmail(e.target.value)}
+                      placeholder="Enter member email"
+                      className="w-full bg-slate-50 rounded-2xl py-4 pl-5 pr-12 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all border border-slate-100"
+                    />
+                    <button 
+                      onClick={handleAddMember}
+                      disabled={isAddingMember || !memberEmail}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-100 disabled:opacity-50"
+                    >
+                      {isAddingMember ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                    </button>
+                  </div>
+                  
+                  {memberError && (
+                    <p className="text-[10px] font-bold text-red-500 px-2 italic">⚠️ {memberError}</p>
+                  )}
+                  {memberSuccess && (
+                    <p className="text-[10px] font-bold text-green-500 px-2 italic">✓ Member added successfully!</p>
+                  )}
+
+                  <div className="p-4 bg-slate-50 rounded-2xl">
+                    <p className="text-[10px] text-slate-400 leading-relaxed">
+                      Invite members to share budgets and view cumulative household spending. Each member must already have an account.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Section 1: Financial Budget */}
           <section>
@@ -145,13 +224,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full bg-white text-gray-600 font-bold py-4 px-5 rounded-2xl flex items-center justify-between active:scale-95 transition-all border border-gray-100 hover:bg-gray-50 group"
+                disabled={isImporting}
+                className="w-full bg-white text-gray-600 font-bold py-4 px-5 rounded-2xl flex items-center justify-between active:scale-95 transition-all border border-gray-100 hover:bg-gray-50 group disabled:opacity-50"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100 transition-colors">
-                    <Upload size={18} />
+                    {isImporting ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
                   </div>
-                  <span className="text-sm">Import into Cloud</span>
+                  <span className="text-sm">{isImporting ? 'Importing Data...' : 'Import into Cloud'}</span>
                 </div>
                 <ChevronRight size={16} className="text-gray-300" />
               </button>

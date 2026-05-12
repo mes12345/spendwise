@@ -11,7 +11,7 @@ import {
   format, isWithinInterval, startOfMonth, endOfMonth, 
   subMonths, startOfYear, eachDayOfInterval, isSameDay,
   eachMonthOfInterval, min, max, isSameMonth,
-  isAfter, startOfDay
+  isAfter, startOfDay, differenceInMonths, subDays
 } from 'date-fns';
 import { ChevronDown, Calendar, CreditCard, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
@@ -47,6 +47,9 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
         start = startOfMonth(selectedMonth);
         end = endOfMonth(selectedMonth);
         break;
+      case '30 Days':
+        start = startOfDay(subDays(now, 29));
+        break;
       case '6 Months':
         start = startOfMonth(subMonths(now, 5));
         break;
@@ -55,6 +58,13 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
         break;
       case 'YTD':
         start = startOfYear(now);
+        break;
+      case 'All':
+        if (transactions.length > 0) {
+          start = min(transactions.map(t => new Date(t.date)));
+        } else {
+          start = startOfMonth(now);
+        }
         break;
       default:
         start = startOfMonth(now);
@@ -73,11 +83,16 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
   const timeframeBudget = useMemo(() => {
     if (timeframe === 'Month') return budget;
     const now = new Date();
+    if (timeframe === '30 Days') return budget;
     if (timeframe === '6 Months') return budget * 6;
     if (timeframe === '12 Months') return budget * 12;
     if (timeframe === 'YTD') return budget * (now.getMonth() + 1);
+    if (timeframe === 'All') {
+      const months = differenceInMonths(dateRange.end, dateRange.start) + 1;
+      return budget * Math.max(1, months);
+    }
     return budget;
-  }, [timeframe, budget]);
+  }, [timeframe, budget, dateRange]);
 
   const timeSeriesData = useMemo(() => {
     const days = eachDayOfInterval(dateRange);

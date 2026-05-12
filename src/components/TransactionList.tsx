@@ -10,14 +10,17 @@ interface TransactionListProps {
   transactions: Transaction[];
   onDelete: (id: string) => void;
   onEdit: (transaction: Transaction) => void;
+  showGroups?: boolean;
 }
 
-const TransactionList: React.FC<TransactionListProps> = ({ transactions, onDelete, onEdit }) => {
-  const sortedTransactions = [...transactions].sort((a, b) => 
-    new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
-
-  const groupedTransactions = sortedTransactions.reduce((acc, t) => {
+const TransactionList: React.FC<TransactionListProps> = ({ transactions, onDelete, onEdit, showGroups = true }) => {
+  const groupedTransactions = transactions.reduce((acc, t) => {
+    if (!showGroups) {
+      const allLabel = 'Transactions';
+      if (!acc[allLabel]) acc[allLabel] = [];
+      acc[allLabel].push(t);
+      return acc;
+    }
     const date = new Date(t.date);
     let dayLabel: string;
     
@@ -48,7 +51,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onDelet
     <div className="flex flex-col gap-8 px-6 pt-4 pb-32">
       {dayLabels.map((dayLabel, dayIdx) => (
         <section key={dayLabel} className="space-y-3">
-          <h4 className="px-1 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{dayLabel}</h4>
+          {showGroups && (
+            <h4 className="px-1 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{dayLabel}</h4>
+          )}
           <div className="space-y-0.5 rounded-[24px] overflow-hidden border border-slate-100 bg-slate-50/50">
             {groupedTransactions[dayLabel].map((t, tIdx) => {
               const config = getCategoryConfig(t.category);

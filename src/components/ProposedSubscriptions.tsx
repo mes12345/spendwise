@@ -47,7 +47,7 @@ const ProposedSubscriptions: React.FC<ProposedSubscriptionsProps> = ({ proposals
                   <div className="overflow-hidden">
                     <h4 className="font-bold text-slate-900 leading-tight truncate text-sm">{sub.vendor}</h4>
                     <p className="text-[10px] text-indigo-500 font-black mt-0.5 truncate uppercase tracking-widest">
-                      ${sub.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} • Monthly
+                      ${sub.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} • {sub.frequency === 1 ? 'Monthly' : `Every ${sub.frequency}m`}
                     </p>
                   </div>
                 </div>

@@ -14,14 +14,32 @@ service cloud.firestore {
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
 
+    function getHousehold(householdId) {
+      return get(/databases/$(database)/documents/households/$(householdId)).data;
+    }
+
+    function isHouseholdMember(householdId) {
+      return isSignedIn() && isValidId(householdId) && (request.auth.uid in getHousehold(householdId).memberUids);
+    }
+
     // --- 2. Entity Validations ---
 
     function isValidUser(data) {
       return data.email is string && data.email.size() > 0 && data.email.size() <= 256
           && data.monthlyLimit is number && data.monthlyLimit >= 0
-          && data.createdAt is string // In the app code it uses ISO string, ideally it should be server timestamp
-          && data.keys().hasAll(['monthlyLimit', 'email', 'createdAt'])
-          && data.keys().size() == 3;
+          && data.householdId is string && data.householdId.size() > 0
+          && data.createdAt is string 
+          && data.keys().hasAll(['monthlyLimit', 'email', 'createdAt', 'householdId'])
+          && data.keys().size() >= 4 && data.keys().size() <= 7; // Allow uid, displayName, photoURL
+    }
+
+    function isValidHousehold(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+          && data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 10
+          && data.ownerUid is string && data.ownerUid.size() > 0
+          && data.createdAt is string
+          && data.keys().hasAll(['name', 'memberUids', 'ownerUid', 'createdAt'])
+          && data.keys().size() >= 4 && data.keys().size() <= 5;
     }
 
     function isValidTransaction(data) {
@@ -29,10 +47,12 @@ service cloud.firestore {
           && data.vendor is string && data.vendor.size() > 0 && data.vendor.size() <= 256
           && data.amount is number && data.amount >= 0
           && data.category is string && data.category.size() > 0 && data.category.size() <= 100
-          && data.date is string // ISO string
+          && data.date is string 
+          && data.userId is string && data.userId.size() > 0
+          && data.householdId is string && data.householdId.size() > 0
           && (data.get('subscriptionId', null) == null || data.subscriptionId is string)
-          && data.keys().hasAll(['description', 'vendor', 'amount', 'category', 'date', 'subscriptionId'])
-          && data.keys().size() == 6;
+          && data.keys().hasAll(['description', 'vendor', 'amount', 'category', 'date', 'subscriptionId', 'userId', 'householdId'])
+          && data.keys().size() == 8;
     }
 
     function isValidSubscription(data) {
@@ -40,35 +60,62 @@ service cloud.firestore {
           && data.vendor is string && data.vendor.size() > 0 && data.vendor.size() <= 256
           && data.amount is number && data.amount >= 0
           && data.category is string && data.category.size() > 0 && data.category.size() <= 100
-          && data.dayOfMonth is int && data.dayOfMonth >= 1 && data.dayOfMonth <= 31
+          && data.frequency is number && data.frequency >= 1 && data.frequency <= 48
+          && data.recurrenceType in ['month-day', 'weekday']
+          && data.userId is string
+          && data.householdId is string
+          && (data.get('dayOfMonth', null) == null || (data.dayOfMonth is number && data.dayOfMonth >= 1 && data.dayOfMonth <= 31))
+          && (data.get('weekdayConfig', null) == null || (
+              data.weekdayConfig.weekIndex is number && (data.weekdayConfig.weekIndex >= 1 || data.weekdayConfig.weekIndex == -1)
+              && data.weekdayConfig.dayOfWeek is number && data.weekdayConfig.dayOfWeek >= 0 && data.weekdayConfig.dayOfWeek <= 6
+          ))
           && data.active is bool
-          && data.keys().hasAll(['description', 'vendor', 'amount', 'category', 'dayOfMonth', 'active'])
-          && data.keys().size() == 6;
+          && data.keys().hasAll(['description', 'vendor', 'amount', 'category', 'active', 'frequency', 'recurrenceType', 'userId', 'householdId'])
+          && data.keys().size() >= 9 && data.keys().size() <= 11;
     }
 
     // --- 3. Match Blocks ---
 
+    match /households/{householdId} {
+      allow get: if isSignedIn() && request.auth.uid in existing().memberUids;
+      allow create: if isSignedIn() && isValidHousehold(incoming()) && incoming().ownerUid == request.auth.uid;
+      allow update: if isSignedIn() && isHouseholdMember(householdId) && isValidHousehold(incoming())
+                   && (incoming().ownerUid == existing().ownerUid)
+                   && (request.auth.uid == existing().ownerUid || (incoming().memberUids == existing().memberUids));
+    }
+
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) || isHouseholdMember(existing().householdId);
+      allow list: if isSignedIn() && request.query.limit == 1; // Allow finding a user by email
       allow create: if isOwner(userId) && isValidUser(incoming());
       allow update: if isOwner(userId) && isValidUser(incoming())
-                   && incoming().diff(existing()).affectedKeys().hasOnly(['monthlyLimit', 'email']);
+                   && incoming().diff(existing()).affectedKeys().hasOnly(['monthlyLimit', 'email', 'householdId']);
 
       match /transactions/{transactionId} {
-        allow list, get: if isOwner(userId);
+        allow get: if isOwner(userId) || isHouseholdMember(existing().householdId);
+        allow list: if isOwner(userId);
         allow create: if isOwner(userId) && isValidId(transactionId) && isValidTransaction(incoming());
         allow update: if isOwner(userId) && isValidTransaction(incoming())
-                     && incoming().diff(existing()).affectedKeys().hasOnly(['description', 'vendor', 'amount', 'category', 'date', 'subscriptionId']);
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['description', 'vendor', 'amount', 'category', 'date', 'subscriptionId', 'userId', 'householdId']);
         allow delete: if isOwner(userId);
       }
 
       match /subscriptions/{subscriptionId} {
-        allow list, get: if isOwner(userId);
+        allow get: if isOwner(userId) || isHouseholdMember(existing().householdId);
+        allow list: if isOwner(userId);
         allow create: if isOwner(userId) && isValidId(subscriptionId) && isValidSubscription(incoming());
         allow update: if isOwner(userId) && isValidSubscription(incoming())
-                     && incoming().diff(existing()).affectedKeys().hasOnly(['description', 'vendor', 'amount', 'category', 'dayOfMonth', 'active']);
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['description', 'vendor', 'amount', 'category', 'active', 'frequency', 'recurrenceType', 'userId', 'householdId']);
         allow delete: if isOwner(userId);
       }
+    }
+
+    // --- 4. Collection Group Rules ---
+    match /{path=**}/transactions/{transactionId} {
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isHouseholdMember(resource.data.householdId));
+    }
+    match /{path=**}/subscriptions/{subscriptionId} {
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isHouseholdMember(resource.data.householdId));
     }
   }
 }

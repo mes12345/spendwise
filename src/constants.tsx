@@ -14,7 +14,7 @@ import {
   GraduationCap,
   Home
 } from 'lucide-react';
-import { Category, Transaction } from './types';
+import { Category } from './types';
 
 export const CATEGORY_CONFIG: Record<Category, { icon: React.ReactNode; color: string }> = {
   [Category.Shopping]: { icon: <ShoppingBag size={18} />, color: '#FF2D55' },
@@ -35,9 +35,3 @@ export const CATEGORY_CONFIG: Record<Category, { icon: React.ReactNode; color: s
 export const getCategoryConfig = (category: string | Category) => {
   return CATEGORY_CONFIG[category as Category] || CATEGORY_CONFIG[Category.Other];
 };
-
-export const INITIAL_TRANSACTIONS: Transaction[] = [
-  { id: '1', description: 'Dark Wash Denim', vendor: 'Abercrombie', amount: 50.99, category: Category.Shopping, date: new Date().toISOString() },
-  { id: '2', description: 'Weekly Groceries', vendor: 'Whole Foods', amount: 84.20, category: Category.Groceries, date: new Date(Date.now() - 86400000).toISOString() },
-  { id: '3', description: 'Monthly Gym Fee', vendor: 'Equinox', amount: 220.00, category: Category.Fitness, date: new Date(Date.now() - 172800000).toISOString() },
-];

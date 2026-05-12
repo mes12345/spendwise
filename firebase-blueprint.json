@@ -7,9 +7,10 @@
       "properties": {
         "monthlyLimit": { "type": "number", "description": "Monthly spending limit" },
         "email": { "type": "string", "description": "User email" },
+        "householdId": { "type": "string", "description": "Current household ID" },
         "createdAt": { "type": "string", "format": "date-time", "description": "Account creation date" }
       },
-      "required": ["monthlyLimit", "email", "createdAt"]
+      "required": ["monthlyLimit", "email", "createdAt", "householdId"]
     },
     "Transaction": {
       "title": "Transaction",
@@ -21,9 +22,11 @@
         "amount": { "type": "number", "description": "Amount spent" },
         "category": { "type": "string", "description": "Spending category" },
         "date": { "type": "string", "format": "date-time", "description": "Transaction date" },
-        "subscriptionId": { "type": "string", "description": "Optional link to a recurring subscription" }
+        "subscriptionId": { "type": "string", "description": "Optional link to a recurring subscription" },
+        "userId": { "type": "string", "description": "Owner of the transaction" },
+        "householdId": { "type": "string", "description": "Household context" }
       },
-      "required": ["description", "vendor", "amount", "category", "date"]
+      "required": ["description", "vendor", "amount", "category", "date", "userId", "householdId"]
     },
     "Subscription": {
       "title": "Subscription",
@@ -34,10 +37,34 @@
         "vendor": { "type": "string", "description": "Vendor name" },
         "amount": { "type": "number", "description": "Recurring amount" },
         "category": { "type": "string", "description": "Category" },
-        "dayOfMonth": { "type": "number", "description": "Day of month when it recurs" },
-        "active": { "type": "boolean", "description": "Whether the subscription is active" }
+        "active": { "type": "boolean", "description": "Whether the subscription is active" },
+        "frequency": { "type": "number", "description": "Every X months" },
+        "recurrenceType": { "type": "string", "enum": ["month-day", "weekday"], "description": "Type of recurrence" },
+        "dayOfMonth": { "type": "number", "description": "Day of month if month-day" },
+        "weekdayConfig": {
+          "type": "object",
+          "properties": {
+            "weekIndex": { "type": "number" },
+            "dayOfWeek": { "type": "number" }
+          },
+          "description": "Weekday config if weekday recurrence"
+        },
+        "userId": { "type": "string", "description": "Owner" },
+        "householdId": { "type": "string", "description": "Household ID" }
       },
-      "required": ["description", "vendor", "amount", "category", "dayOfMonth", "active"]
+      "required": ["description", "vendor", "amount", "category", "active", "frequency", "recurrenceType", "userId", "householdId"]
+    },
+    "Household": {
+      "title": "Household",
+      "description": "Group of users sharing finances",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "memberUids": { "type": "array", "items": { "type": "string" } },
+        "ownerUid": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "memberUids", "ownerUid", "createdAt"]
     }
   },
   "firestore": {
@@ -52,6 +79,10 @@
     "/users/{userId}/subscriptions/{subscriptionId}": {
       "schema": "Subscription",
       "description": "User recurring subscriptions"
+    },
+    "/households/{householdId}": {
+      "schema": "Household",
+      "description": "Household documents"
     }
   }
 }
