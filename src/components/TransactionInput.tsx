@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Tag, User, AlignLeft, RefreshCw, Check, X } from 'lucide-react';
+import { Calendar, Tag, User, AlignLeft, RefreshCw, Check, X, Wand2, Sparkles } from 'lucide-react';
 import { Transaction, Category } from '../types';
 import { CATEGORY_CONFIG } from '../constants';
 import { format, parse } from 'date-fns';
+import { parseNaturalLanguageTransaction } from '../services/geminiService';
 
 interface TransactionInputProps {
   onAddTransaction: (t: Omit<Transaction, 'id' | 'date'>, date: string, isRecurring: boolean) => void;
@@ -21,6 +22,10 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
     isRecurring: false
   });
 
+  const [aiInput, setAiInput] = useState('');
+  const [isAiParsing, setIsAiParsing] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -33,6 +38,33 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
       });
     }
   }, [initialData]);
+
+  const handleAiParse = async () => {
+    if (!aiInput.trim()) return;
+    setIsAiParsing(true);
+    setAiError(null);
+
+    try {
+      const result = await parseNaturalLanguageTransaction(aiInput);
+      if (result) {
+        setFormData({
+          description: result.description || '',
+          vendor: result.vendor || '',
+          amount: result.amount?.toString() || '',
+          category: (result.category as Category) || Category.Other,
+          date: result.date || format(new Date(), 'yyyy-MM-dd'),
+          isRecurring: !!result.isRecurring
+        });
+        setAiInput('');
+      } else {
+        setAiError("Could not parse. Try being more specific!");
+      }
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "Error connecting to AI");
+    } finally {
+      setIsAiParsing(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +101,36 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
 
   return (
     <div className={`w-full ${!initialData ? 'animate-in fade-in slide-in-from-bottom-2 duration-300' : ''}`}>
+      {!initialData && (
+        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[24px] p-4 mb-6 shadow-lg shadow-indigo-100">
+           <div className="flex items-center gap-2 mb-3">
+             <Sparkles size={16} className="text-white/80" />
+             <h3 className="text-white font-bold text-sm tracking-tight">Magic Add</h3>
+           </div>
+           <div className="relative">
+              <textarea
+                value={aiInput}
+                onChange={(e) => setAiInput(e.target.value)}
+                placeholder="e.g. Spent $45 on groceries at Whole Foods..."
+                className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white placeholder-white/40 focus:outline-none focus:bg-white/20 transition-all text-sm min-h-[80px] resize-none"
+              />
+              <button
+                type="button"
+                onClick={handleAiParse}
+                disabled={isAiParsing || !aiInput.trim()}
+                className="absolute bottom-2 right-2 p-2 bg-white rounded-lg text-indigo-600 shadow-sm active:scale-90 transition-all disabled:opacity-50"
+              >
+                {isAiParsing ? (
+                  <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Wand2 size={16} />
+                )}
+              </button>
+           </div>
+           {aiError && <p className="text-white/80 text-[10px] mt-2 font-medium">{aiError}</p>}
+        </div>
+      )}
+      
       <form 
         id={initialData ? "edit-transaction-form" : "add-transaction-form"}
         onSubmit={handleSubmit} 

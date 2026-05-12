@@ -74,18 +74,21 @@
     <div id="root"></div>
     
     <script>
-        // Detection script
+        // Simple initialization tracking
+        window.SpendWiseInitialized = false;
+        
+        // Hide loader failsafe
         setTimeout(() => {
             if (!window.SpendWiseInitialized) {
-                console.error("SpendWise: App failed to initialize.");
+                console.error("SpendWise: App taking too long to load...");
                 const errorDisplay = document.getElementById('error-display');
                 if (errorDisplay) {
-                    errorDisplay.innerHTML = "<strong>Slow Load</strong><br>Check your connection or console (F12) for errors.";
+                    errorDisplay.innerHTML = "<strong>Unable to start app</strong><br>Possible network issue or script failure.<br><br>Check browser console (F12) for details.";
                     errorDisplay.classList.add('show');
                 }
             }
-        }, 15000);
+        }, 12000);
     </script>
-    <script type="module" src="/src/index.tsx"></script>
+    <script type="module" src="src/index.tsx"></script>
 </body>
 </html>
