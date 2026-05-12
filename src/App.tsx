@@ -11,6 +11,7 @@ import TransactionList from './components/TransactionList';
 import SettingsModal from './components/SettingsModal';
 import ProposedSubscriptions from './components/ProposedSubscriptions';
 import Login from './components/Login';
+import AccessDenied from './components/AccessDenied';
 
 import { Transaction, Timeframe, Subscription } from './types';
 import { useAuth } from './components/FirebaseProvider';
@@ -18,8 +19,19 @@ import { useFinanceData } from './hooks/useFinanceData';
 
 type Tab = 'Dashboard' | 'Add' | 'Transactions';
 
+const ALLOWED_EMAILS = [
+  'mathew.e.spencer@gmail.com',
+  'cvondeisenroth@gmail.com'
+];
+
 const App: React.FC = () => {
   const { user, loading: authLoading, logout } = useAuth();
+  
+  const isAllowed = useMemo(() => {
+    if (!user || !user.email) return false;
+    return ALLOWED_EMAILS.includes(user.email.toLowerCase());
+  }, [user]);
+
   const { 
     transactions, 
     budget, 
@@ -84,6 +96,8 @@ const App: React.FC = () => {
   }
 
   if (!user) return <Login />;
+
+  if (!isAllowed) return <AccessDenied />;
 
   const renderContent = () => {
     switch (activeTab) {

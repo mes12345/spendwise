@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { motion } from 'motion/react';
 import { Transaction, Timeframe, Category } from '../types';
-import { CATEGORY_CONFIG } from '../constants';
+import { CATEGORY_CONFIG, getCategoryConfig } from '../constants';
 import { 
   format, isWithinInterval, startOfMonth, endOfMonth, 
   subMonths, startOfYear, eachDayOfInterval, isSameDay,
@@ -70,6 +70,15 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
     return filteredTransactions.reduce((acc, curr) => acc + curr.amount, 0);
   }, [filteredTransactions]);
 
+  const timeframeBudget = useMemo(() => {
+    if (timeframe === 'Month') return budget;
+    const now = new Date();
+    if (timeframe === '6 Months') return budget * 6;
+    if (timeframe === '12 Months') return budget * 12;
+    if (timeframe === 'YTD') return budget * (now.getMonth() + 1);
+    return budget;
+  }, [timeframe, budget]);
+
   const timeSeriesData = useMemo(() => {
     const days = eachDayOfInterval(dateRange);
     const totalDays = days.length;
@@ -77,6 +86,9 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
     const result = [];
     const today = startOfDay(new Date());
     
+    // Calculate a daily target budget for the pacing line
+    const dailyTarget = timeframeBudget / totalDays;
+
     for (let i = 0; i < days.length; i++) {
       const day = days[i];
       const isFuture = isAfter(startOfDay(day), today);
@@ -89,6 +101,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
       const dataPoint: any = {
         date: format(day, totalDays > 31 ? 'MMM d' : 'd'),
         fullDate: format(day, 'MMMM d'),
+        target: dailyTarget * (i + 1),
       };
 
       if (!isFuture) {
@@ -97,7 +110,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
       result.push(dataPoint);
     }
     return result;
-  }, [dateRange, filteredTransactions]);
+  }, [dateRange, filteredTransactions, timeframeBudget]);
 
   const categoryData = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -108,12 +121,12 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
     return Object.entries(totals).map(([name, value]) => ({
       name,
       value,
-      color: CATEGORY_CONFIG[name as Category]?.color || '#64748B'
+      color: getCategoryConfig(name as Category).color
     })).sort((a, b) => b.value - a.value);
   }, [filteredTransactions]);
 
-  const percentOfBudget = Math.min(Math.round((currentSpending / budget) * 100), 100);
-  const isOverBudget = currentSpending > budget;
+  const percentOfBudget = Math.min(Math.round((currentSpending / timeframeBudget) * 100), 100);
+  const isOverBudget = currentSpending > timeframeBudget;
 
   return (
     <div className="flex flex-col gap-6 px-6 pb-24">
@@ -146,7 +159,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
                 />
               </div>
               <p className="text-[10px] opacity-60 font-medium italic">
-                {isOverBudget ? `Exceeded by $${(currentSpending - budget).toFixed(2)}` : `$${(budget - currentSpending).toFixed(2)} remaining this period`}
+                {isOverBudget ? `Exceeded by $${(currentSpending - timeframeBudget).toFixed(2)}` : `$${(timeframeBudget - currentSpending).toFixed(2)} remaining this period`}
               </p>
             </div>
           </div>
@@ -204,7 +217,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
         </div>
         <div className="h-[220px] w-full -ml-6">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={timeSeriesData}>
+            <ComposedChart data={timeSeriesData}>
               <defs>
                 <linearGradient id="colorSpent" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.1}/>
@@ -219,14 +232,19 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
                 tick={{ fontSize: 9, fill: '#94A3B8', fontWeight: 600 }} 
                 minTickGap={30}
               />
-              <YAxis hide domain={[0, 'auto']} />
+              <YAxis hide domain={[0, (dataMax: number) => Math.max(dataMax * 1.1, timeframeBudget)]} />
               <Tooltip 
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     return (
-                      <div className="bg-slate-900 text-white p-3 rounded-2xl shadow-2xl border border-slate-800">
+                      <div className="bg-slate-900 text-white p-3 rounded-2xl shadow-2xl border border-slate-800 space-y-1">
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">{payload[0].payload.fullDate}</p>
-                        <p className="text-sm font-black">${payload[0].value.toLocaleString()}</p>
+                        {payload.map((entry: any) => (
+                          <div key={entry.name} className="flex items-center justify-between gap-4">
+                            <span className="text-[10px] font-bold uppercase text-slate-400">{entry.name}:</span>
+                            <span className="text-xs font-black">${entry.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        ))}
                       </div>
                     );
                   }
@@ -234,6 +252,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
                 }}
               />
               <Area 
+                name="Spent"
                 type="monotone" 
                 dataKey="spent" 
                 stroke="#4F46E5" 
@@ -241,8 +260,19 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
                 fillOpacity={1} 
                 fill="url(#colorSpent)" 
                 animationDuration={1500}
+                isAnimationActive={true}
               />
-            </AreaChart>
+              <Line 
+                name="Budget"
+                type="monotone" 
+                dataKey="target" 
+                stroke="#94A3B8" 
+                strokeWidth={2} 
+                strokeDasharray="5 5" 
+                dot={false}
+                animationDuration={1500}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </section>
@@ -267,7 +297,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
                   className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-lg"
                   style={{ backgroundColor: cat.color }}
                 >
-                  {CATEGORY_CONFIG[cat.name as Category]?.icon || <CreditCard size={14} />}
+                  {getCategoryConfig(cat.name as Category).icon}
                 </div>
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-tight truncate flex-1">{cat.name}</span>
               </div>
@@ -284,7 +314,5 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, budget, timeframe, 
   );
 };
 
-// Internal sub-component for AreaChart since Recharts re-exports
-import { AreaChart } from 'recharts';
-
+// Dashboard component
 export default Dashboard;

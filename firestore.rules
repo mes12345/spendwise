@@ -19,6 +19,13 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email_verified == true;
     }
 
+    function isAllowedUser() {
+      return isSignedIn() && request.auth.token.email in [
+        'mathew.e.spencer@gmail.com',
+        'cvondeisenroth@gmail.com'
+      ];
+    }
+
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -63,40 +70,40 @@ service cloud.firestore {
     // --- Matches ---
 
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow create: if isOwner(userId) 
+      allow get: if isOwner(userId) && isAllowedUser();
+      allow create: if isOwner(userId) && isAllowedUser() 
         && incoming().keys().hasAll(['monthlyLimit', 'email', 'createdAt'])
         && isValidUser(incoming()) 
         && incoming().email == request.auth.token.email;
-      allow update: if isOwner(userId) 
+      allow update: if isOwner(userId) && isAllowedUser() 
         && isValidUser(incoming()) 
         && (incoming().keys().hasAny(['email']) ? incoming().email == existing().email : true)
         && (incoming().diff(existing()).affectedKeys().hasOnly(['monthlyLimit']));
 
       match /transactions/{transactionId} {
-        allow list: if isOwner(userId);
-        allow get: if isOwner(userId);
-        allow create: if isOwner(userId) && isVerified() 
+        allow list: if isOwner(userId) && isAllowedUser();
+        allow get: if isOwner(userId) && isAllowedUser();
+        allow create: if isOwner(userId) && isVerified() && isAllowedUser() 
           && isValidId(transactionId) 
           && incoming().keys().hasAll(['description', 'vendor', 'amount', 'category', 'date'])
           && isValidTransaction(incoming());
-        allow update: if isOwner(userId) && isVerified() 
+        allow update: if isOwner(userId) && isVerified() && isAllowedUser() 
           && isValidTransaction(incoming())
           && (incoming().diff(existing()).affectedKeys().hasOnly(['description', 'vendor', 'amount', 'category', 'date', 'subscriptionId']));
-        allow delete: if isOwner(userId) && isVerified();
+        allow delete: if isOwner(userId) && isVerified() && isAllowedUser();
       }
 
       match /subscriptions/{subscriptionId} {
-        allow list: if isOwner(userId);
-        allow get: if isOwner(userId);
-        allow create: if isOwner(userId) && isVerified() 
+        allow list: if isOwner(userId) && isAllowedUser();
+        allow get: if isOwner(userId) && isAllowedUser();
+        allow create: if isOwner(userId) && isVerified() && isAllowedUser() 
           && isValidId(subscriptionId) 
           && incoming().keys().hasAll(['description', 'vendor', 'amount', 'category', 'dayOfMonth', 'active'])
           && isValidSubscription(incoming());
-        allow update: if isOwner(userId) && isVerified() 
+        allow update: if isOwner(userId) && isVerified() && isAllowedUser() 
           && isValidSubscription(incoming())
           && (incoming().diff(existing()).affectedKeys().hasOnly(['description', 'vendor', 'amount', 'category', 'dayOfMonth', 'active']));
-        allow delete: if isOwner(userId) && isVerified();
+        allow delete: if isOwner(userId) && isVerified() && isAllowedUser();
       }
     }
   }

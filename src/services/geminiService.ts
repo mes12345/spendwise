@@ -23,29 +23,39 @@ export async function parseNaturalLanguageTransaction(text: string): Promise<Par
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Extract transaction details (amount, vendor, description, category, isRecurring, date) from: "${text}". Current date: ${new Date().toISOString().split('T')[0]}.`,
+      contents: text,
       config: {
-        systemInstruction: "Extract transaction details. Categories: Food, Transport, Utilities, Entertainment, Shopping, Health, Other. Return JSON.",
+        systemInstruction: `Return a raw JSON object with: amount (number), vendor (string), category (string), and isRecurring (boolean). Categories: Shopping, Fitness, Dining, Groceries, Automotive, Travel, Health, Entertainment, Utilities, Baby Items, Education, Household, Other. No markdown.`,
+        temperature: 0.1,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
             amount: { type: Type.NUMBER },
             vendor: { type: Type.STRING },
-            description: { type: Type.STRING },
             category: { type: Type.STRING },
             isRecurring: { type: Type.BOOLEAN },
-            date: { type: Type.STRING, description: "YYYY-MM-DD" },
           },
-          required: ["amount", "vendor", "description", "category", "isRecurring", "date"]
+          required: ["amount", "vendor", "category", "isRecurring"]
         },
       },
     });
 
     const json = JSON.parse(response.text || "{}");
-    return json as ParsedTransaction;
+    return {
+      ...json,
+      description: json.vendor || text.slice(0, 50), // Fallback description
+      date: new Date().toISOString().split('T')[0] // Default to today
+    } as ParsedTransaction;
   } catch (error) {
-    console.error("Gemini parsing failed:", error);
-    return null;
+    console.error("Gemini optimization fallback applied:", error);
+    return {
+      amount: 0,
+      vendor: "Unknown",
+      description: text.slice(0, 50),
+      category: "Other",
+      isRecurring: false,
+      date: new Date().toISOString().split('T')[0]
+    };
   }
 }

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Transaction } from '../types';
-import { CATEGORY_CONFIG } from '../constants';
+import { CATEGORY_CONFIG, getCategoryConfig } from '../constants';
 import { format, isToday, isYesterday } from 'date-fns';
 import { Trash2, RefreshCw, Pencil, MoreVertical } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -51,7 +51,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onDelet
           <h4 className="px-1 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{dayLabel}</h4>
           <div className="space-y-0.5 rounded-[24px] overflow-hidden border border-slate-100 bg-slate-50/50">
             {groupedTransactions[dayLabel].map((t, tIdx) => {
-              const config = CATEGORY_CONFIG[t.category];
+              const config = getCategoryConfig(t.category);
               return (
                 <motion.div 
                   key={t.id} 

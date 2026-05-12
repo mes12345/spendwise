@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Subscription } from '../types';
-import { CATEGORY_CONFIG } from '../constants';
+import { CATEGORY_CONFIG, getCategoryConfig } from '../constants';
 import { RefreshCw, Check, X, Trash2, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -27,7 +27,7 @@ const ProposedSubscriptions: React.FC<ProposedSubscriptionsProps> = ({ proposals
       <div className="flex flex-col gap-3">
         <AnimatePresence>
           {proposals.map((sub, idx) => {
-            const config = CATEGORY_CONFIG[sub.category];
+            const config = getCategoryConfig(sub.category);
             return (
               <motion.div 
                 key={sub.id} 

@@ -32,6 +32,10 @@ export const CATEGORY_CONFIG: Record<Category, { icon: React.ReactNode; color: s
   [Category.Other]: { icon: <MoreHorizontal size={18} />, color: '#3b82f6' },
 };
 
+export const getCategoryConfig = (category: string | Category) => {
+  return CATEGORY_CONFIG[category as Category] || CATEGORY_CONFIG[Category.Other];
+};
+
 export const INITIAL_TRANSACTIONS: Transaction[] = [
   { id: '1', description: 'Dark Wash Denim', vendor: 'Abercrombie', amount: 50.99, category: Category.Shopping, date: new Date().toISOString() },
   { id: '2', description: 'Weekly Groceries', vendor: 'Whole Foods', amount: 84.20, category: Category.Groceries, date: new Date(Date.now() - 86400000).toISOString() },

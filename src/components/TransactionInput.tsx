@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Tag, User, AlignLeft, RefreshCw, Check, X, Wand2, Sparkles, Building2 } from 'lucide-react';
 import { Transaction, Category } from '../types';
-import { CATEGORY_CONFIG } from '../constants';
+import { CATEGORY_CONFIG, getCategoryConfig } from '../constants';
 import { format, parse } from 'date-fns';
 import { parseNaturalLanguageTransaction } from '../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
@@ -214,7 +214,7 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
             </label>
             <div className="flex items-center gap-3">
               <motion.div 
-                animate={{ backgroundColor: CATEGORY_CONFIG[formData.category].color }}
+                animate={{ backgroundColor: getCategoryConfig(formData.category).color }}
                 className="w-2 h-2 rounded-full ring-4 ring-slate-50"
               />
               <select 
