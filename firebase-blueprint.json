@@ -2,50 +2,40 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "User profile and budget settings",
+      "description": "User profile and settings",
       "type": "object",
       "properties": {
-        "monthlyLimit": {
-          "type": "number",
-          "description": "The user's monthly spending limit"
-        },
-        "email": {
-          "type": "string",
-          "description": "User's email address"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "When the user account was created"
-        }
+        "monthlyLimit": { "type": "number", "description": "Monthly spending limit" },
+        "email": { "type": "string", "description": "User email" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation date" }
       },
       "required": ["monthlyLimit", "email", "createdAt"]
     },
     "Transaction": {
       "title": "Transaction",
-      "description": "A spending transaction",
+      "description": "A single spending record",
       "type": "object",
       "properties": {
-        "description": { "type": "string" },
-        "vendor": { "type": "string" },
-        "amount": { "type": "number" },
-        "category": { "type": "string" },
-        "date": { "type": "string", "format": "date-time" },
-        "subscriptionId": { "type": "string" }
+        "description": { "type": "string", "description": "Transaction description" },
+        "vendor": { "type": "string", "description": "Place where money was spent" },
+        "amount": { "type": "number", "description": "Amount spent" },
+        "category": { "type": "string", "description": "Spending category" },
+        "date": { "type": "string", "format": "date-time", "description": "Transaction date" },
+        "subscriptionId": { "type": "string", "description": "Optional link to a recurring subscription" }
       },
       "required": ["description", "vendor", "amount", "category", "date"]
     },
     "Subscription": {
       "title": "Subscription",
-      "description": "A recurring payment definition",
+      "description": "A recurring spending definition",
       "type": "object",
       "properties": {
-        "description": { "type": "string" },
-        "vendor": { "type": "string" },
-        "amount": { "type": "number" },
-        "category": { "type": "string" },
-        "dayOfMonth": { "type": "number" },
-        "active": { "type": "boolean" }
+        "description": { "type": "string", "description": "Subscription description" },
+        "vendor": { "type": "string", "description": "Vendor name" },
+        "amount": { "type": "number", "description": "Recurring amount" },
+        "category": { "type": "string", "description": "Category" },
+        "dayOfMonth": { "type": "number", "description": "Day of month when it recurs" },
+        "active": { "type": "boolean", "description": "Whether the subscription is active" }
       },
       "required": ["description", "vendor", "amount", "category", "dayOfMonth", "active"]
     }
@@ -57,11 +47,11 @@
     },
     "/users/{userId}/transactions/{transactionId}": {
       "schema": "Transaction",
-      "description": "User's transactions"
+      "description": "User transactions"
     },
     "/users/{userId}/subscriptions/{subscriptionId}": {
       "schema": "Subscription",
-      "description": "User's recurring payments"
+      "description": "User recurring subscriptions"
     }
   }
 }

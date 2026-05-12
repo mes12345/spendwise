@@ -60,8 +60,18 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
       } else {
         setAiError("I couldn't quite catch that. Try adding more detail!");
       }
-    } catch (err) {
-      setAiError("The magic failed. Please try again or enter manually.");
+    } catch (err: any) {
+      console.error("AI Error:", err);
+      // Try to extract a clean message from the error object or string
+      const errorContent = err.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+      
+      if (errorContent.includes('429') || errorContent.includes('RESOURCE_EXHAUSTED') || errorContent.includes('depleted')) {
+        setAiError("AI Credits Depleted: Please visit AI Studio to manage your billing or credits.");
+      } else if (errorContent.includes('GEMINI_API_KEY') || errorContent.includes('not configured')) {
+        setAiError("API Key Missing: Please provide a valid Gemini API key in the app settings.");
+      } else {
+        setAiError("The magic encountered a glitch. Please try again or enter manually.");
+      }
     } finally {
       setIsAiParsing(false);
     }
