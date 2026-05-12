@@ -6,7 +6,7 @@ import { FirebaseProvider } from './components/FirebaseProvider';
 
 // Mark as initialized IMMEDIATELY when the module starts loading
 (window as any).SpendWiseInitialized = true;
-console.info("SpendWise: index.tsx module loading started.");
+console.info("SpendWise: main.tsx module loading started.");
 
 // Global error listener to catch issues during script execution
 window.onerror = (message, source, lineno, colno, error) => {

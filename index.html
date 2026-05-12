@@ -63,6 +63,7 @@
         }
         .error-container.show { display: block; }
     </style>
+    <script type="module" src="/src/main.tsx"></script>
 </head>
 <body>
     <div id="loading" class="loading-screen">
@@ -74,21 +75,16 @@
     <div id="root"></div>
     
     <script>
-        // Simple initialization tracking
         window.SpendWiseInitialized = false;
-        
-        // Hide loader failsafe
         setTimeout(() => {
             if (!window.SpendWiseInitialized) {
-                console.error("SpendWise: App taking too long to load...");
                 const errorDisplay = document.getElementById('error-display');
                 if (errorDisplay) {
-                    errorDisplay.innerHTML = "<strong>Unable to start app</strong><br>Possible network issue or script failure.<br><br>Check browser console (F12) for details.";
+                    errorDisplay.innerHTML = "<strong>Initialization Timeout</strong><br>The application took too long to load. This can happen if the background build process is still running or if there's a script error.<br><br>Refresh the page or check the console.";
                     errorDisplay.classList.add('show');
                 }
             }
-        }, 12000);
+        }, 15000);
     </script>
-    <script type="module" src="src/index.tsx"></script>
 </body>
 </html>
