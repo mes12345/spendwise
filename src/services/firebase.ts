@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -15,6 +15,13 @@ try {
 
 export const db = app ? getFirestore(app, firebaseConfig.firestoreDatabaseId) : null as any;
 export const auth = app ? getAuth(app) : null as any;
+
+// Enforce browserLocalPersistence
+if (auth) {
+  setPersistence(auth, browserLocalPersistence).catch((error) => {
+    console.error("Firebase persistence setup failed:", error);
+  });
+}
 
 // CRITICAL: Validate connection to Firestore
 async function testConnection() {

@@ -82,6 +82,9 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
       // Try to extract a clean message from the error object or string
       const errorContent = err.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
       
+      // DEBUG: Per user request for iOS PWA debugging
+      alert(`Magic Entry Error: ${errorContent}`);
+      
       if (errorContent.includes('429') || errorContent.includes('RESOURCE_EXHAUSTED') || errorContent.includes('depleted')) {
         setAiError("AI Credits Depleted: Please visit AI Studio to manage your billing or credits.");
       } else if (errorContent.includes('GEMINI_API_KEY') || errorContent.includes('not configured')) {
