@@ -2,7 +2,6 @@ import express from "express";
 import path from "path";
 import cors from "cors";
 import { createServer as createViteServer } from "vite";
-import admin from "firebase-admin";
 import fs from "fs";
 
 // Load Firebase Config for Project ID
@@ -12,18 +11,6 @@ if (fs.existsSync(firebaseConfigPath)) {
   firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf-8"));
 }
 
-// Initialize Firebase Admin (may need credentials, but we'll try default or config-based)
-if (admin.apps.length === 0) {
-  try {
-    admin.initializeApp({
-      projectId: firebaseConfig.projectId
-    });
-    console.info("Firebase Admin initialized");
-  } catch (error) {
-    console.error("Firebase Admin initialization failed. Auth verification will be disabled.", error);
-  }
-}
-
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -31,7 +18,7 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
 
-  // API routes FIRST
+  // API Check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
   });
