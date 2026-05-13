@@ -19,14 +19,6 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
-      
-      // Notify Service Worker of auth state for background sync readiness
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'AUTH_STATE_CHANGED',
-          user: u ? { uid: u.uid, email: u.email } : null
-        });
-      }
     });
     return unsubscribe;
   }, []);

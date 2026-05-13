@@ -1,6 +1,9 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
+// Note: Always prefer process.env.GEMINI_API_KEY for the Gemini API.
+const apiKey = process.env.GEMINI_API_KEY;
+
 export interface ParsedTransaction {
   amount: number;
   vendor: string;
@@ -10,17 +13,13 @@ export interface ParsedTransaction {
   date?: string; // ISO format YYYY-MM-DD
 }
 
-// In AI Studio, process.env.GEMINI_API_KEY is provided automatically.
-const apiKey = process.env.GEMINI_API_KEY;
-
 export async function parseNaturalLanguageTransaction(text: string): Promise<ParsedTransaction | null> {
   if (!apiKey) {
-    console.error("GEMINI_API_KEY is not configured in the environment.");
-    throw new Error("GEMINI_API_KEY is missing. Please ensure your AI Studio project is configured.");
+    throw new Error("GEMINI_API_KEY is not configured. Please add it in Settings > Secrets.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -43,16 +42,10 @@ export async function parseNaturalLanguageTransaction(text: string): Promise<Par
       },
     });
 
-    if (!response.text) {
-      throw new Error("Model returned an empty response.");
-    }
-
-    const result = JSON.parse(response.text);
-    return result as ParsedTransaction;
-  } catch (error: any) {
-    console.error("Gemini client-side parsing failed:", error);
-    // Alert info for debugging as per user requirement
-    const errorMsg = error.message || String(error);
-    throw new Error(`Client-side Gemini Error: ${errorMsg}`);
+    const json = JSON.parse(response.text || "{}");
+    return json as ParsedTransaction;
+  } catch (error) {
+    console.error("Gemini parsing failed:", error);
+    throw error;
   }
 }
