@@ -94,6 +94,11 @@ const App: React.FC = () => {
     return result.slice(0, 100); // Limit to 100 for performance
   }, [transactions, activityStartDate, activityEndDate, activitySearch, activityCategory, activitySortField, activitySortDirection]);
 
+  const uniqueMerchants = useMemo(() => {
+    const merchants = transactions.map(t => t.vendor);
+    return Array.from(new Set(merchants)).filter(m => !!m);
+  }, [transactions]);
+
   const handleExport = useCallback(() => {
     const data = {
       transactions,
@@ -252,6 +257,7 @@ const App: React.FC = () => {
             </div>
             <TransactionInput 
               onAddTransaction={handleSaveTransaction} 
+              existingMerchants={uniqueMerchants}
               onCancel={() => setActiveTab('Dashboard')}
             />
           </motion.div>
@@ -502,6 +508,7 @@ const App: React.FC = () => {
               <div className="p-6 overflow-y-auto flex-1 hide-scrollbar">
                 <TransactionInput 
                   initialData={editingTransaction} 
+                  existingMerchants={uniqueMerchants}
                   onAddTransaction={handleSaveTransaction} 
                   onCancel={() => setEditingTransaction(null)}
                 />

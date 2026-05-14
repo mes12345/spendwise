@@ -20,10 +20,11 @@ interface TransactionInputProps {
     }
   ) => Promise<void>;
   initialData?: Transaction;
+  existingMerchants?: string[];
   onCancel?: () => void;
 }
 
-const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, initialData, onCancel }) => {
+const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, initialData, existingMerchants = [], onCancel }) => {
   const [formData, setFormData] = useState({
     description: '',
     vendor: '',
@@ -61,7 +62,7 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
     setAiError(null);
 
     try {
-      const result = await parseNaturalLanguageTransaction(aiInput);
+      const result = await parseNaturalLanguageTransaction(aiInput, existingMerchants);
       if (result) {
         setFormData({
           description: result.description || '',
@@ -87,7 +88,8 @@ const TransactionInput: React.FC<TransactionInputProps> = ({ onAddTransaction, i
       } else if (errorContent.includes('GEMINI_API_KEY') || errorContent.includes('not configured')) {
         setAiError("API Key Missing: Please provide a valid Gemini API key in the app settings.");
       } else {
-        setAiError("The magic encountered a glitch. Please try again or enter manually.");
+        const errorMsg = errorContent.length > 60 ? errorContent.substring(0, 60) + "..." : errorContent;
+        setAiError(`Magic failed: ${errorMsg}. Please try manual entry.`);
       }
     } finally {
       setIsAiParsing(false);
