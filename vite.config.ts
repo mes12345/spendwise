@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
+    console.log("Vite Config: GEMINI_API_KEY presence:", !!(process.env.GEMINI_API_KEY || env.GEMINI_API_KEY));
     return {
       base: '/',
       server: {
@@ -17,7 +18,6 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react(), tailwindcss()],
       define: {
-        'process.env.API_KEY': JSON.stringify(process.env.GEMINI_API_KEY || env.GEMINI_API_KEY || ''),
         'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY || env.GEMINI_API_KEY || '')
       },
       resolve: {

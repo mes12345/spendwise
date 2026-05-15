@@ -12,16 +12,15 @@ export interface ParsedTransaction {
 
 export async function parseNaturalLanguageTransaction(text: string, existingMerchants: string[] = []): Promise<ParsedTransaction | null> {
   const apiKey = process.env.GEMINI_API_KEY;
-  console.log("Magic Entry: API Key present?", !!apiKey, "Length:", apiKey?.length);
   
-  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-    throw new Error("GEMINI_API_KEY is not configured or is empty. Please check Settings > Secrets.");
+  if (!apiKey || apiKey === 'undefined') {
+    throw new Error("GEMINI_API_KEY is not configured. Please ensure it is set in Settings > Secrets.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
 
   const merchantsContext = existingMerchants.length > 0 
-    ? `\n\nExisting merchants in the system: ${existingMerchants.join(', ')}. Please attempt to match the extracted vendor to one of these if they appear to be same (e.g. prioritize exact matches or follow established naming/capitalization).`
+    ? `\n\nExisting merchants in the system: ${existingMerchants.join(', ')}. Please attempt to match the extracted vendor to one of these if they appear to be same.`
     : '';
 
   try {
@@ -46,10 +45,12 @@ export async function parseNaturalLanguageTransaction(text: string, existingMerc
       },
     });
 
-    const json = JSON.parse(response.text || "{}");
-    return json as ParsedTransaction;
-  } catch (error) {
-    console.error("Gemini parsing failed:", error);
+    const jsonText = response.text;
+    if (!jsonText) throw new Error("Empty response from AI");
+    
+    return JSON.parse(jsonText.trim()) as ParsedTransaction;
+  } catch (error: any) {
+    console.error("Magic Entry failed:", error);
     throw error;
   }
 }
