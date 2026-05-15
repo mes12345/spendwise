@@ -1,33 +1,12 @@
+
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-let app;
-try {
-  console.info("SpendWise: Initializing Firebase...");
-  app = initializeApp(firebaseConfig);
-} catch (error) {
-  console.error("SpendWise: Firebase initialization failed.", error);
-  // Optional: rethrow if critical, but we want to avoid total module failure if possible
-  // For now, we'll let it fail so we can see the error in the console.
-}
-
-export const db = app ? getFirestore(app, firebaseConfig.firestoreDatabaseId) : null as any;
-export const auth = app ? getAuth(app) : null as any;
-
-// CRITICAL: Validate connection to Firestore
-async function testConnection() {
-  try {
-    // Attempting a read from a dummy path to check connectivity
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
-    }
-  }
-}
-// testConnection();
+const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const auth = getAuth(app);
 
 export enum OperationType {
   CREATE = 'create',
@@ -38,7 +17,7 @@ export enum OperationType {
   WRITE = 'write',
 }
 
-export interface FirestoreErrorInfo {
+interface FirestoreErrorInfo {
   error: string;
   operationType: OperationType;
   path: string | null;
@@ -47,11 +26,6 @@ export interface FirestoreErrorInfo {
     email?: string | null;
     emailVerified?: boolean | null;
     isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
   }
 }
 
@@ -63,15 +37,10 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
       email: auth.currentUser?.email,
       emailVerified: auth.currentUser?.emailVerified,
       isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || []
     },
     operationType,
     path
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  console.error('[Firestore Error]', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }

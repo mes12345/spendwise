@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   collection, 
   doc, 
@@ -17,40 +17,44 @@ import {
   limit,
   arrayUnion
 } from 'firebase/firestore';
-import { db, auth, handleFirestoreError, OperationType } from '../services/firebase';
+import { db, handleFirestoreError, OperationType } from '../services/firebase';
 import { Transaction, Subscription, Category, RecurrenceType, UserProfile, Household } from '../types';
-import { isSameMonth, getWeeksInMonth, getWeekOfMonth, getDay, getDate, format, differenceInMonths } from 'date-fns';
-import { User } from 'firebase/auth';
+import { useAuth } from '../components/FirebaseProvider';
+import { differenceInMonths, isSameMonth } from 'date-fns';
 
 export type ViewScope = 'User' | 'Household';
 
-export function getRecurrenceLabel(date: Date) {
-  const dayName = format(date, 'EEEE');
-  const dayOfMonth = getDate(date);
-  const weekIndex = Math.ceil(dayOfMonth / 7);
-  const weekNames = ['first', 'second', 'third', 'fourth', 'fifth'];
-  
-  // Check if it's the last one
-  const nextWeekSameDay = new Date(date);
-  nextWeekSameDay.setDate(dayOfMonth + 7);
-  const isLast = nextWeekSameDay.getMonth() !== date.getMonth();
-  
-  const ordinal = isLast ? 'last' : weekNames[weekIndex - 1];
-  return {
-    dayLabel: `${dayOfMonth}${getOrdinalSuffix(dayOfMonth)} of every month`,
-    weekLabel: `the ${ordinal} ${dayName} of every month`,
-    weekIndex: isLast ? -1 : weekIndex,
-    dayOfWeek: getDay(date)
-  };
+interface FinanceContextType {
+  transactions: Transaction[];
+  subscriptions: Subscription[];
+  budget: number;
+  loading: boolean;
+  proposedSubscriptions: Subscription[];
+  viewScope: ViewScope;
+  setViewScope: (scope: ViewScope) => void;
+  profile: UserProfile | null;
+  household: Household | null;
+  saveTransaction: (
+    t: Omit<Transaction, 'id' | 'date' | 'userId' | 'householdId'>, 
+    date: string, 
+    isRecurring: boolean, 
+    editingId?: string,
+    recurringOptions?: {
+      frequency: number;
+      recurrenceType: RecurrenceType;
+      weekdayConfig?: { weekIndex: number; dayOfWeek: number };
+    }
+  ) => Promise<void>;
+  deleteTransaction: (id: string) => Promise<void>;
+  updateBudget: (val: number) => Promise<void>;
+  addMemberToHousehold: (email: string) => Promise<void>;
+  importData: (data: { transactions: any[], subscriptions?: any[] }) => Promise<void>;
 }
 
-function getOrdinalSuffix(n: number) {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return s[(v - 20) % 10] || s[v] || s[0];
-}
+const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
-export function useFinanceData(user: User | null) {
+export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [household, setHousehold] = useState<Household | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -71,21 +75,18 @@ export function useFinanceData(user: User | null) {
     setLoading(true);
     const userId = user.uid;
 
-    // Sync Profile & Household
     const userDocRef = doc(db, 'users', userId);
     const unsubUser = onSnapshot(userDocRef, async (snapshot) => {
       if (snapshot.exists()) {
         const profileData = snapshot.data() as UserProfile;
         setProfile(profileData);
         
-        // Fetch/Initialize Household
         if (profileData.householdId) {
           const hhRef = doc(db, 'households', profileData.householdId);
           const hhSnap = await getDoc(hhRef);
           if (hhSnap.exists()) {
             setHousehold({ id: hhSnap.id, ...hhSnap.data() } as Household);
           } else {
-            // Household document missing, create one
             const householdId = profileData.householdId;
             await setDoc(doc(db, 'households', householdId), {
               name: `${user.displayName || 'My'} Home`,
@@ -95,7 +96,6 @@ export function useFinanceData(user: User | null) {
             });
           }
         } else {
-          // Retrofit for existing users without householdId
           const householdId = userId;
           const batch = writeBatch(db);
           batch.update(userDocRef, { householdId });
@@ -108,36 +108,28 @@ export function useFinanceData(user: User | null) {
           await batch.commit();
         }
       } else {
-        // Initialize new user profile and household
         const batch = writeBatch(db);
-        const householdId = userId; // Default household ID same as UID
-        
+        const householdId = userId;
         const newProfile = {
           email: user.email || '',
           monthlyLimit: 2000,
           householdId: householdId,
           createdAt: new Date().toISOString()
         };
-        
         batch.set(userDocRef, newProfile);
-        
         batch.set(doc(db, 'households', householdId), {
           name: `${user.displayName || 'My'} Home`,
           memberUids: [userId],
           ownerUid: userId,
           createdAt: new Date().toISOString()
         });
-
         await batch.commit();
       }
     }, (err) => handleFirestoreError(err, OperationType.GET, `users/${userId}`));
 
-    return () => {
-      unsubUser();
-    };
+    return () => unsubUser();
   }, [user]);
 
-  // Sync Data based on scope
   useEffect(() => {
     if (!user || !profile) return;
 
@@ -169,7 +161,7 @@ export function useFinanceData(user: User | null) {
     };
   }, [user, profile, viewScope]);
 
-  const saveTransaction = async (
+  const saveTransaction = useCallback(async (
     t: Omit<Transaction, 'id' | 'date' | 'userId' | 'householdId'>, 
     date: string, 
     isRecurring: boolean, 
@@ -251,70 +243,48 @@ export function useFinanceData(user: User | null) {
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `users/${userId}/transactions`);
     }
-  };
+  }, [user, profile, transactions]);
 
-  const deleteTransaction = async (id: string) => {
+  const deleteTransaction = useCallback(async (id: string) => {
     if (!user) return;
     const trans = transactions.find(t => t.id === id);
     if (!trans) return;
 
     try {
-      // Subcollection delete
       await deleteDoc(doc(db, 'users', trans.userId, 'transactions', id));
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `users/${trans.userId}/transactions/${id}`);
     }
-  };
+  }, [user, transactions]);
 
-  const updateBudget = async (val: number) => {
+  const updateBudget = useCallback(async (val: number) => {
     if (!user) return;
     try {
       await updateDoc(doc(db, 'users', user.uid), { monthlyLimit: val });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
     }
-  };
+  }, [user]);
 
-  const addMemberToHousehold = async (email: string) => {
+  const addMemberToHousehold = useCallback(async (email: string) => {
     if (!user || !profile || !household) return;
-    
-    // 1. Find user by email
     const q = query(collection(db, 'users'), where('email', '==', email.toLowerCase().trim()), limit(1));
     const snap = await getDocs(q);
-    
-    if (snap.empty) {
-      throw new Error("User not found with that email.");
-    }
-    
+    if (snap.empty) throw new Error("User not found with that email.");
     const targetUser = snap.docs[0];
     const targetUid = targetUser.id;
-    
-    if (household.memberUids.includes(targetUid)) {
-      throw new Error("User already in household.");
-    }
-
+    if (household.memberUids.includes(targetUid)) throw new Error("User already in household.");
     const batch = writeBatch(db);
-    
-    // 2. Update household members
-    batch.update(doc(db, 'households', household.id), {
-      memberUids: arrayUnion(targetUid)
-    });
-    
-    // 3. Update target user's householdId
-    batch.update(doc(db, 'users', targetUid), {
-      householdId: household.id
-    });
-    
+    batch.update(doc(db, 'households', household.id), { memberUids: arrayUnion(targetUid) });
+    batch.update(doc(db, 'users', targetUid), { householdId: household.id });
     await batch.commit();
-  };
+  }, [user, profile, household]);
 
-  const importData = async (data: { transactions: any[], subscriptions?: any[] }) => {
+  const importData = useCallback(async (data: { transactions: any[], subscriptions?: any[] }) => {
     if (!user || !profile) return;
     const userId = user.uid;
     const householdId = profile.householdId;
     const batch = writeBatch(db);
-
-    // Import Transactions
     if (data.transactions && Array.isArray(data.transactions)) {
       data.transactions.forEach(t => {
         const transId = doc(collection(db, 'placeholder')).id;
@@ -330,58 +300,42 @@ export function useFinanceData(user: User | null) {
         });
       });
     }
-
-    // Import Subscriptions if present
     if (data.subscriptions && Array.isArray(data.subscriptions)) {
       data.subscriptions.forEach(s => {
         const subId = doc(collection(db, 'placeholder')).id;
-        batch.set(doc(db, 'users', userId, 'subscriptions', subId), {
-          ...s,
-          userId,
-          householdId,
-        });
+        batch.set(doc(db, 'users', userId, 'subscriptions', subId), { ...s, userId, householdId });
       });
     }
-
     try {
       await batch.commit();
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `users/${userId}/import`);
     }
-  };
+  }, [user, profile]);
 
   const proposedSubscriptions = useMemo(() => {
     const now = new Date();
     return subscriptions.filter(sub => {
       if (!sub.active) return false;
-
       const latestTransaction = [...transactions]
         .filter(t => t.subscriptionId === sub.id)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-
-      if (!latestTransaction) {
-        return true;
-      }
-
+      if (!latestTransaction) return true;
       const monthsSince = differenceInMonths(now, new Date(latestTransaction.date));
       const isDueFrequency = monthsSince >= (sub.frequency || 1);
       const isAlreadyLoggedThisMonth = isSameMonth(new Date(latestTransaction.date), now);
-
       return isDueFrequency && !isAlreadyLoggedThisMonth;
     });
   }, [subscriptions, transactions]);
 
-  const householdBudget = useMemo(() => {
-    // Household budget might be sum of member limits or fixed. 
-    // Let's assume sum for now if we know member limits, but we only have current user.
-    // For MVP, just return user's or a default.
+  const currentBudget = useMemo(() => {
     return profile?.monthlyLimit || 2000;
   }, [profile]);
 
-  return {
+  const value = {
     transactions,
     subscriptions,
-    budget: viewScope === 'Household' ? householdBudget : (profile?.monthlyLimit || 2000),
+    budget: currentBudget,
     loading,
     proposedSubscriptions,
     viewScope,
@@ -394,4 +348,12 @@ export function useFinanceData(user: User | null) {
     addMemberToHousehold,
     importData
   };
-}
+
+  return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
+};
+
+export const useFinance = () => {
+  const context = useContext(FinanceContext);
+  if (context === undefined) throw new Error('useFinance must be used within a FinanceProvider');
+  return context;
+};

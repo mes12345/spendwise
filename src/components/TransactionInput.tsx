@@ -3,10 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Tag, User, AlignLeft, RefreshCw, Check, X, Wand2, Sparkles, Building2 } from 'lucide-react';
 import { Transaction, Category, RecurrenceType, Subscription } from '../types';
 import { CATEGORY_CONFIG, getCategoryConfig } from '../constants';
-import { format, parse, getDate, getDay } from 'date-fns';
+import { format, parse } from 'date-fns';
 import { parseNaturalLanguageTransaction } from '../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
-import { getRecurrenceLabel } from '../hooks/useFinanceData';
+import { getRecurrenceLabel } from '../lib/dateUtils';
 
 interface TransactionInputProps {
   onAddTransaction: (
