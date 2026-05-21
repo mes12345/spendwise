@@ -25,35 +25,64 @@ async function startServer() {
       : '';
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
-      const model = ai.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
       
       const prompt = `Today is ${new Date().toISOString().split('T')[0]}. 
       Extract transaction details from: "${text}"
       ${merchantsContext}
       
-      Output JSON matching this schema:
-      {
-        "amount": number,
-        "vendor": string,
-        "description": string,
-        "category": "Shopping" | "Fitness" | "Dining" | "Groceries" | "Automotive" | "Travel" | "Health" | "Entertainment" | "Utilities" | "Baby Items" | "Education" | "Household" | "Other",
-        "isRecurring": boolean,
-        "date": "YYYY-MM-DD"
-      }`;
+      Rules:
+      - Categories: Shopping, Fitness, Dining, Groceries, Automotive, Travel, Health, Entertainment, Utilities, Baby Items, Education, Household, Other.
+      - date: Use YYYY-MM-DD. If no year is specified, use the current year.
+      - amount: Number only.
+      - vendor: The store/service name.
+      - description: A short summary of what was bought.
+      - isRecurring: true if it sounds like a subscription or monthly bill.`;
 
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          systemInstruction: "You are a financial data extractor. You must output valid JSON matching the schema precisely. Be consistent with category names.",
           responseMimeType: "application/json",
-        }
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              amount: { type: Type.NUMBER },
+              vendor: { type: Type.STRING },
+              description: { type: Type.STRING },
+              category: { type: Type.STRING, enum: ["Shopping", "Fitness", "Dining", "Groceries", "Automotive", "Travel", "Health", "Entertainment", "Utilities", "Baby Items", "Education", "Household", "Other"] },
+              isRecurring: { type: Type.BOOLEAN },
+              date: { type: Type.STRING, description: "YYYY-MM-DD" },
+            },
+            required: ["amount", "vendor", "description", "category", "isRecurring", "date"]
+          },
+        },
       });
 
-      const responseText = result.response.text();
+      const responseText = response.text;
+      if (!responseText) {
+        throw new Error("Empty response from Gemini API");
+      }
       res.json(JSON.parse(responseText.trim()));
     } catch (error: any) {
       console.error("Gemini server failure:", error);
-      res.status(500).json({ error: "AI processing failed", details: error.message });
+      let errorMsg = "AI processing failed";
+      let details = error.message || String(error);
+      
+      if (details.includes("API key not valid") || details.includes("API_KEY_INVALID") || details.includes("INVALID_ARGUMENT")) {
+        errorMsg = "Invalid API Key";
+        details = "The Gemini API key configured on the server is invalid. Please visit Settings > Secrets in AI Studio to configure a valid API key.";
+      }
+      
+      res.status(500).json({ error: errorMsg, details });
     }
   });
 
